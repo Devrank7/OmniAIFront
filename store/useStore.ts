@@ -8,6 +8,7 @@ interface User {
     last_name?: string;
     email: string;
     avatar?: string;
+    business_context?: string;
 }
 
 interface UserState {

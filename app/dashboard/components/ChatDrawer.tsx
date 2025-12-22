@@ -2,13 +2,20 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { useSocket } from "@/hooks/useSocket";
+import VoiceMessage from "./VoiceMessage"; // Убедись, что создал этот файл на прошлом шаге
+import { div } from "framer-motion/client";
 
 // --- ТИПЫ ДАННЫХ ---
 interface Message {
     _id: string;
     text: string;
+    caption?: string;
     is_lead: boolean;
     createdAt: string;
+    // Типы медиа
+    type?: 'text' | 'photo' | 'voice' | 'sticker';
+    mediaUrl?: string;
 }
 
 interface Lead {
@@ -18,13 +25,13 @@ interface Lead {
     temperature: 'COLD' | 'WARM' | 'HOT';
     updatedAt: string;
     note?: string;
+    ai_draft_response?: string;
 }
 
-// Добавляем onUpdate в пропсы
 interface ChatModalProps {
     lead: Lead;
     onClose: () => void;
-    onUpdate: (updatedLead: Lead) => void; // <--- Callback для обновления родителя
+    onUpdate: (updatedLead: Lead) => void;
 }
 
 // --- ИКОНКИ ---
@@ -39,12 +46,16 @@ const Icons = {
 
 export default function ChatModal({ lead, onClose, onUpdate }: ChatModalProps) {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
+    const socket = useSocket();
 
     const [messages, setMessages] = useState<Message[]>([]);
-    const [newMessage, setNewMessage] = useState("");
+    const [newMessage, setNewMessage] = useState(lead.ai_draft_response || "");
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
+
+    // Рефы для скролла и авто-ресайза textarea
     const scrollRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // --- ЛОГИКА ЗАМЕТКИ ---
     const [noteText, setNoteText] = useState(lead.note || "");
@@ -55,7 +66,7 @@ export default function ChatModal({ lead, onClose, onUpdate }: ChatModalProps) {
         setIsSavingNote(true);
         try {
             const token = localStorage.getItem("token");
-            const res = await fetch(`${API_URL}/leads/${lead._id}`, {
+            const res = await fetch(`${API_URL}/leads/${lead._id}`, { // Путь исправлен на /api/leads
                 method: "PATCH",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
                 body: JSON.stringify({ note: noteText })
@@ -64,7 +75,6 @@ export default function ChatModal({ lead, onClose, onUpdate }: ChatModalProps) {
 
             if (data.success) {
                 setIsEditingNote(false);
-                // ВАЖНО: Обновляем родительский стейт
                 onUpdate(data.lead);
             }
         } catch (e) { console.error(e); } finally { setIsSavingNote(false); }
@@ -115,6 +125,67 @@ export default function ChatModal({ lead, onClose, onUpdate }: ChatModalProps) {
         if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }, [messages, loading]);
 
+    // --- SOCKETS ---
+    useEffect(() => {
+        if (!socket) return;
+
+        // 1. Новые сообщения
+        const handleMessage = (data: { message: Message, leadId: string }) => {
+            if (data.leadId === lead._id) {
+                setMessages(prev => [...prev, data.message]);
+            }
+        };
+
+        // 2. Обновление лида (Черновик ИИ)
+        const handleLeadUpdate = (updatedLead: Lead) => {
+            if (updatedLead._id === lead._id) {
+                // Если пришел черновик от ИИ и поле пустое (или содержит старый черновик), обновляем
+                if (updatedLead.ai_draft_response) {
+                    setNewMessage(updatedLead.ai_draft_response);
+                }
+                onUpdate(updatedLead);
+            }
+        };
+
+        socket.on('message:new', handleMessage);
+        socket.on('lead:update', handleLeadUpdate);
+
+        return () => {
+            socket.off('message:new', handleMessage);
+            socket.off('lead:update', handleLeadUpdate);
+        };
+    }, [socket, lead._id, onUpdate]);
+    const renderCleanText = (text: string) => {
+        if (!text) return null;
+
+        // Если текст начинается как наш системный JSON (грубая проверка)
+        if (text.trim().startsWith('{') && text.includes('"response_draft"')) {
+            // Для старых сломанных сообщений лучше ничего не показывать,
+            // так как там нет чистого поля transcription
+            return null;
+        }
+
+        return <span className="block break-words">{text}</span>;
+    };
+
+    // --- ЛОГИКА TEXTAREA (Auto-Resize) ---
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = "auto"; // Сброс
+            // Вычисляем новую высоту, но не больше 150px
+            const newHeight = Math.min(textareaRef.current.scrollHeight, 150);
+            textareaRef.current.style.height = `${newHeight}px`;
+        }
+    }, [newMessage]);
+
+    // Отправка по Enter (Shift+Enter = новая строка)
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            handleSend(e as any);
+        }
+    };
+
     // --- ОТПРАВКА СООБЩЕНИЯ ---
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -132,7 +203,10 @@ export default function ChatModal({ lead, onClose, onUpdate }: ChatModalProps) {
             const data = await res.json();
             if (data.success) {
                 setMessages([...messages, data.message]);
-                setNewMessage("");
+                setNewMessage(""); // Очищаем поле ввода
+
+                // Сбрасываем высоту textarea
+                if (textareaRef.current) textareaRef.current.style.height = "56px";
             }
         } catch (e) { console.error(e); } finally { setSending(false); }
     };
@@ -197,19 +271,69 @@ export default function ChatModal({ lead, onClose, onUpdate }: ChatModalProps) {
                 <div className="flex-1 bg-black/20 overflow-y-auto p-8 space-y-4 scroll-smooth" ref={scrollRef}>
                     {loading ? <div className="flex h-full items-center justify-center"><div className="w-8 h-8 border-4 border-zinc-800 border-t-purple-500 rounded-full animate-spin" /></div> : messages.length === 0 ? <div className="h-full flex flex-col items-center justify-center text-zinc-600 space-y-4"><div className="w-16 h-16 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-3xl">💬</div><p>No messages yet. Start the conversation!</p></div> : messages.map((msg) => (
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={msg._id} className={`flex ${msg.is_lead ? 'justify-start' : 'justify-end'}`}>
-                            <div className={`relative px-4 py-2 max-w-[65%] rounded-2xl text-sm leading-relaxed shadow-sm min-w-[80px] ${msg.is_lead ? 'bg-zinc-800 border border-white/5 text-zinc-200 rounded-tl-none' : 'bg-blue-600 text-white rounded-tr-none shadow-[0_5px_15px_rgba(37,99,235,0.2)]'}`}>
-                                <span className="break-words">{msg.text}</span>
-                                <span className={`float-right ml-3 mt-1 text-[10px] flex items-center gap-1 select-none ${msg.is_lead ? 'text-zinc-500' : 'text-blue-200 opacity-80'}`}>{new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}{!msg.is_lead && <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>}</span>
+                            <div className={`relative px-4 py-2 max-w-[75%] rounded-2xl text-sm leading-relaxed shadow-sm min-w-[120px] ${msg.is_lead ? 'bg-zinc-800 border border-white/5 text-zinc-200 rounded-tl-none' : 'bg-blue-600 text-white rounded-tr-none shadow-[0_5px_15px_rgba(37,99,235,0.2)]'}`}>
+
+                                {/* 1. ФОТО */}
+                                {msg.type === 'photo' && msg.mediaUrl && (
+                                    <div className="mb-2 rounded-lg overflow-hidden border border-white/10 mt-1">
+                                        <img src={msg.mediaUrl} alt="Photo" className="w-full h-auto max-h-[300px] object-cover" />
+                                    </div>
+                                )}
+
+                                {/* 2. ГОЛОСОВОЕ СООБЩЕНИЕ */}
+                                {msg.type === 'voice' && msg.mediaUrl && (
+                                    <div className="mb-2 mt-1">
+                                        <VoiceMessage src={msg.mediaUrl} isLead={msg.is_lead} />
+                                    </div>
+                                )}
+                                {/* 3. CAPTION (ПОДПИСЬ ПОЛЬЗОВАТЕЛЯ) - Жирный или яркий текст */}
+                                {msg.caption && msg.type === 'photo' && (
+                                    <div className="mb-1 text-sm font-normal break-words">
+                                        {msg.caption}
+                                    </div>
+                                )}
+
+                                {/* 3. ТЕКСТ / РАСШИФРОВКА */}
+                                {/* 3. ТЕКСТ / РАСШИФРОВКА */}
+                                {msg.text && (
+                                    <div className={`${(msg.type === 'voice' || msg.type === 'photo') ? 'text-xs opacity-70 italic border-l-2 border-white/20 pl-2 my-1' : ''}`}>
+                                        {/* Используем нашу функцию вместо простого вывода */}
+                                        {renderCleanText(msg.text)}
+                                    </div>
+                                )}
+
+                                {/* Время */}
+                                <span className={`float-right ml-3 mt-1 text-[10px] flex items-center gap-1 select-none ${msg.is_lead ? 'text-zinc-500' : 'text-blue-200 opacity-80'}`}>
+                                    {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    {!msg.is_lead && <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>}
+                                </span>
                             </div>
                         </motion.div>
                     ))}
                 </div>
 
-                {/* INPUT */}
+                {/* INPUT AREA */}
                 <div className="p-6 bg-[#09090b] border-t border-white/5">
-                    <form onSubmit={handleSend} className="relative max-w-4xl mx-auto flex gap-4">
-                        <div className="relative flex-1"><input type="text" placeholder="Type your message..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} className="w-full bg-zinc-900 border border-white/10 rounded-xl py-4 pl-6 pr-12 text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 transition-all shadow-inner" /></div>
-                        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} type="submit" disabled={sending || !newMessage.trim()} className="w-14 h-14 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl text-white flex items-center justify-center shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all">{sending ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Icons.Send />}</motion.button>
+                    <form onSubmit={handleSend} className="relative max-w-4xl mx-auto flex gap-4 items-end">
+                        <div className="relative flex-1 bg-zinc-900 border border-white/10 rounded-xl focus-within:border-purple-500/50 focus-within:ring-1 focus-within:ring-purple-500/20 transition-all shadow-inner">
+                            <textarea
+                                ref={textareaRef}
+                                placeholder="Type your message..."
+                                value={newMessage}
+                                onChange={(e) => setNewMessage(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                rows={1}
+                                className="w-full bg-transparent text-white placeholder-zinc-600 px-6 py-4 rounded-xl focus:outline-none resize-none overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent"
+                                style={{ minHeight: "56px", maxHeight: "150px" }}
+                            />
+                        </div>
+                        <motion.button
+                            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                            type="submit" disabled={sending || !newMessage.trim()}
+                            className="w-14 h-14 shrink-0 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl text-white flex items-center justify-center shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            {sending ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Icons.Send />}
+                        </motion.button>
                     </form>
                 </div>
 

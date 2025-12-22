@@ -109,7 +109,9 @@ export default function SignUpPage() {
 
             // Сохраняем токен
             localStorage.setItem("token", data.token);
-            router.push("/dashboard");
+
+            // ИЗМЕНЕНИЕ: Отправляем на заполнение инфы
+            router.push("/onboarding");
 
         } catch (err: any) {
             setError(err.message);
