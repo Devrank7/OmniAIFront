@@ -39,7 +39,8 @@ const Icons = {
     Note: () => <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
     Search: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>,
     Filter: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>,
-    Bot: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>
+    Bot: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>,
+    Lock: () => <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
 };
 
 // --- КОМПОНЕНТ КАРТОЧКИ ---
@@ -68,6 +69,29 @@ function LeadCard({ lead, index, onDelete, onAddNote, onDeleteNote, onClick }: {
     const truncateText = (text: string, length: number) => {
         if (!text) return "";
         return text.length > length ? text.substring(0, length) + "..." : text;
+    };
+    const renderLastMessage = (text?: string) => {
+        if (!text) return <span className="italic opacity-50">No messages yet</span>;
+
+        // Проверка на JSON от ИИ (если в базе старые данные)
+        if (text.trim().startsWith('{') && text.includes('"reasoning"')) {
+            // Пытаемся понять тип по содержимому (грубо, но эффективно для старых данных)
+            if (text.toLowerCase().includes('audio') || text.toLowerCase().includes('transcription')) {
+                return <span className="italic text-purple-400">🎤 Voice Message</span>;
+            }
+            if (text.toLowerCase().includes('image') || text.toLowerCase().includes('photo')) {
+                return <span className="italic text-blue-400">📷 Photo</span>;
+            }
+            return <span className="italic text-zinc-500">Analysis...</span>;
+        }
+
+        // Проверка на новые маркеры (если ты их уже внедрил, типа [Voice]...)
+        if (text.startsWith('[Voice')) return <span className="italic text-purple-400">🎤 Voice Message</span>;
+        if (text.startsWith('[Photo')) return <span className="italic text-blue-400">📷 Photo</span>;
+        if (text.startsWith('📷')) return <span className="italic text-blue-400">📷 Photo</span>; // Если caption
+
+        // Обычный текст
+        return truncateText(text, 45);
     };
 
     return (
@@ -137,7 +161,7 @@ function LeadCard({ lead, index, onDelete, onAddNote, onDeleteNote, onClick }: {
                     {/* --- CONTENT AREA: NOTE OR MESSAGE --- */}
                     <div className="mt-3 mb-3 min-h-[2.5em]">
                         {lead.note ? (
-                            // 1. ОТОБРАЖЕНИЕ ЗАМЕТКИ (Яркое, выделяющееся)
+                            // ... (код заметки без изменений) ...
                             <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2 flex items-start gap-2">
                                 <span className="text-yellow-500 mt-0.5 shrink-0"><Icons.Note /></span>
                                 <p className="text-xs text-yellow-200/90 font-medium leading-snug line-clamp-2">
@@ -145,12 +169,9 @@ function LeadCard({ lead, index, onDelete, onAddNote, onDeleteNote, onClick }: {
                                 </p>
                             </div>
                         ) : (
-                            // 2. ОТОБРАЖЕНИЕ СООБЩЕНИЯ (Спокойное, серое)
+                            // 2. ОТОБРАЖЕНИЕ СООБЩЕНИЯ (ОБНОВЛЕНО)
                             <p className="text-xs text-zinc-500 leading-relaxed pl-1">
-                                {lead.last_message
-                                    ? truncateText(lead.last_message, 45)
-                                    : <span className="italic opacity-50">No messages yet</span>
-                                }
+                                {renderLastMessage(lead.last_message)}
                             </p>
                         )}
                     </div>
@@ -215,13 +236,44 @@ function AddNoteModal({ onClose, onSaved }: { onClose: () => void; onSaved: (tex
 }
 
 function PlatformDetailsModal({ platform, onClose }: { platform: TelegramInfo, onClose: () => void }) {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
+
     // Состояние для управления второй модалкой
     const [showManageChats, setShowManageChats] = useState(false);
+    // Состояние для загрузки отключения
+    const [isDisconnecting, setIsDisconnecting] = useState(false);
 
-    // Если открыта модалка управления чатами, рендерим её поверх (или вместо)
+    // Логика отключения
+    const handleDisconnect = async () => {
+        if (!confirm("Are you sure you want to disconnect Telegram? You will stop receiving messages.")) return;
+
+        setIsDisconnecting(true);
+        try {
+            const token = localStorage.getItem("token");
+            const res = await fetch(`${API_URL}/api/telegram`, { // Предполагаем, что рут /api/telegram
+                method: "DELETE",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                onClose();
+                window.location.reload(); // Перезагружаем страницу, чтобы обновить состояние кнопок
+            } else {
+                alert("Failed to disconnect platform");
+            }
+        } catch (e) {
+            console.error("Disconnect error:", e);
+            alert("Error disconnecting platform");
+        } finally {
+            setIsDisconnecting(false);
+        }
+    };
+
+    // Если открыта модалка управления чатами, рендерим её поверх
     if (showManageChats) {
         return <ManageChatsModal onClose={() => setShowManageChats(false)} />;
     }
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
@@ -249,9 +301,8 @@ function PlatformDetailsModal({ platform, onClose }: { platform: TelegramInfo, o
                         <span className="text-zinc-300 text-sm">{new Date(platform.createdAt).toLocaleDateString()}</span>
                     </div>
                 </div>
-                {/* ДОБАВЛЯЕМ КНОПКУ СЮДА, перед Disconnect */}
-                <div className="mt-8 flex flex-col gap-3 relative z-10">
 
+                <div className="mt-8 flex flex-col gap-3 relative z-10">
                     <button
                         onClick={() => setShowManageChats(true)}
                         className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors border border-white/5 flex items-center justify-center gap-2"
@@ -262,7 +313,20 @@ function PlatformDetailsModal({ platform, onClose }: { platform: TelegramInfo, o
 
                     <div className="flex gap-3">
                         <button onClick={onClose} className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm font-medium transition-colors">Close</button>
-                        <button className="flex-1 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-sm font-medium transition-colors">Disconnect</button>
+
+                        {/* Кнопка Disconnect теперь рабочая */}
+                        <button
+                            onClick={handleDisconnect}
+                            disabled={isDisconnecting}
+                            className="flex-1 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex justify-center items-center gap-2"
+                        >
+                            {isDisconnecting ? (
+                                <>
+                                    <div className="w-3 h-3 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin"/>
+                                    Disconnecting...
+                                </>
+                            ) : "Disconnect"}
+                        </button>
                     </div>
                 </div>
             </motion.div>
@@ -312,26 +376,35 @@ export default function PipelinePage() {
     const fetchData = async () => {
         const token = localStorage.getItem("token");
         if (!token) return;
+
+        // ЕСЛИ НЕТ ПОДПИСКИ - НЕ ГРУЗИМ ЛИДЫ (Экономим ресурсы и время)
+        if (user && !user.is_premium) {
+            setLoading(false);
+            return;
+        }
+
         try {
             const [statusesRes, leadsRes, botRes] = await Promise.all([
                 fetch(`${API_URL}/statuses`, { headers: { "Authorization": `Bearer ${token}` } }),
                 fetch(`${API_URL}/leads`, { headers: { "Authorization": `Bearer ${token}` } }),
-                // Запрашиваем бота
                 fetch(`${API_URL}/telegram-bot`, { headers: { "Authorization": `Bearer ${token}` } })
             ]);
 
             const statusesData = await statusesRes.json();
             const leadsData = await leadsRes.json();
-            const botData = await botRes.json(); // Данные бота
+            const botData = await botRes.json();
 
             if (statusesRes.ok) setStatuses(statusesData.statuses.sort((a: any, b: any) => a.order - b.order));
             if (leadsRes.ok) setLeads(leadsData.leads || []);
-            if (botRes.ok && botData.platform) setTelegramBot(botData.platform); // Сохраняем бота
+            if (botRes.ok && botData.platform) setTelegramBot(botData.platform);
 
         } catch (e) { console.error(e); } finally { setLoading(false); }
     };
 
-    useEffect(() => { fetchData(); }, [API_URL]);
+    // Запускаем fetchData только когда юзер загрузился
+    useEffect(() => {
+        if(user) fetchData();
+    }, [API_URL, user]); // Добавил user в зависимости
     const handleDisconnectBot = async () => {
         const token = localStorage.getItem("token");
         try {
@@ -485,97 +558,85 @@ export default function PipelinePage() {
     return (
         <div className="flex flex-col h-full overflow-hidden relative bg-[#050505] text-white font-sans selection:bg-purple-500/30">
 
-            {/* ... Ambient Background ... */}
+            {/* Ambient Background */}
             <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
                 <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-purple-900/20 blur-[150px] rounded-full opacity-60" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-blue-900/10 blur-[150px] rounded-full opacity-60" />
                 <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03]" />
             </div>
 
-            {/* ... Modals ... */}
-            <AnimatePresence>
-                {selectedLead && <ChatModal key="chat" lead={selectedLead} onClose={() => setSelectedLead(null)} onUpdate={handleLeadUpdate} />}
-                {showCreateStatus && <CreateStatusModal key="status" onClose={() => setShowCreateStatus(false)} onCreated={fetchData} />}
-                {showPlatformModal && telegramPlatform && <PlatformDetailsModal key="platform" platform={telegramPlatform} onClose={() => setShowPlatformModal(false)} />}
-                {noteModalLead && <AddNoteModal key="note" onClose={() => setNoteModalLead(null)} onSaved={handleSaveNote} />}
-                {toastMessage && <Toast key="toast" message={toastMessage} onClose={() => setToastMessage("")} />}
-                {/* ДОБАВЬ ВОТ ЭТОТ БЛОК: */}
-                {showBotModal && telegramBot && (
-                    <BotDetailsModal
-                        key="bot-modal"
-                        bot={telegramBot}
-                        onClose={() => setShowBotModal(false)}
-                        onDisconnect={handleDisconnectBot}
-                    />
-                )}
-            </AnimatePresence>
-
-            {/* HEADER */}
+            {/* HEADER (Всегда виден, но элементы поиска скрыты для Free юзеров) */}
             <header className="h-20 border-b border-white/5 flex items-center justify-between px-8 backdrop-blur-xl z-20 shrink-0 relative bg-[#050505]/50">
                 <div className="flex items-center gap-6">
                     <h1 className="text-2xl font-bold text-white tracking-tight drop-shadow-sm">CRM Pipeline</h1>
-                    <div className="h-6 w-px bg-white/10"></div>
 
-                    {/* SEARCH & FILTER BAR */}
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <svg className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                            <input
-                                type="text"
-                                placeholder="Search leads..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="bg-white/5 border border-white/5 rounded-full py-1.5 pl-9 pr-4 text-sm text-zinc-300 focus:outline-none focus:bg-white/10 transition-colors w-64 focus:ring-1 focus:ring-white/10"
-                            />
-                        </div>
+                    {/* Показываем поиск и фильтры ТОЛЬКО если есть подписка */}
+                    {user?.is_premium && (
+                        <>
+                            <div className="h-6 w-px bg-white/10"></div>
+                            <div className="flex items-center gap-3">
+                                {/* SEARCH */}
+                                <div className="relative">
+                                    <svg className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                    <input
+                                        type="text"
+                                        placeholder="Search leads..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="bg-white/5 border border-white/5 rounded-full py-1.5 pl-9 pr-4 text-sm text-zinc-300 focus:outline-none focus:bg-white/10 transition-colors w-64 focus:ring-1 focus:ring-white/10"
+                                    />
+                                </div>
 
-                        {/* FILTER DROPDOWN */}
-                        <div className="relative" onClick={(e) => e.stopPropagation()}>
-                            <button
-                                onClick={() => setShowFilterMenu(!showFilterMenu)}
-                                className={`h-8 w-8 flex items-center justify-center rounded-full border transition-all ${showFilterMenu ? 'bg-white text-black border-white' : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white hover:bg-white/10'}`}
-                            >
-                                <Icons.Filter />
-                            </button>
-
-                            <AnimatePresence>
-                                {showFilterMenu && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                        className="absolute top-10 left-0 w-48 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 py-1"
+                                {/* FILTER DROPDOWN */}
+                                <div className="relative" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                        onClick={() => setShowFilterMenu(!showFilterMenu)}
+                                        className={`h-8 w-8 flex items-center justify-center rounded-full border transition-all ${showFilterMenu ? 'bg-white text-black border-white' : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white hover:bg-white/10'}`}
                                     >
-                                        <div className="px-3 py-2 text-[10px] uppercase font-bold text-zinc-500 tracking-wider border-b border-white/5 mb-1">Sort By</div>
-                                        {[
-                                            { id: 'newest', label: 'Newest First' },
-                                            { id: 'oldest', label: 'Oldest First' },
-                                            { id: 'hot', label: 'Hot Leads 🔥' },
-                                            { id: 'cold', label: 'Cold Leads ❄️' },
-                                        ].map((item) => (
-                                            <button
-                                                key={item.id}
-                                                onClick={() => { setFilter(item.id as any); setShowFilterMenu(false); }}
-                                                className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between hover:bg-white/5 transition-colors ${filter === item.id ? 'text-purple-400 font-medium' : 'text-zinc-300'}`}
+                                        <Icons.Filter />
+                                    </button>
+
+                                    <AnimatePresence>
+                                        {showFilterMenu && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                className="absolute top-10 left-0 w-48 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 py-1"
                                             >
-                                                {item.label}
-                                                {filter === item.id && <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]" />}
-                                            </button>
-                                        ))}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    </div>
+                                                <div className="px-3 py-2 text-[10px] uppercase font-bold text-zinc-500 tracking-wider border-b border-white/5 mb-1">Sort By</div>
+                                                {[
+                                                    { id: 'newest', label: 'Newest First' },
+                                                    { id: 'oldest', label: 'Oldest First' },
+                                                    { id: 'hot', label: 'Hot Leads 🔥' },
+                                                    { id: 'cold', label: 'Cold Leads ❄️' },
+                                                ].map((item) => (
+                                                    <button
+                                                        key={item.id}
+                                                        onClick={() => { setFilter(item.id as any); setShowFilterMenu(false); }}
+                                                        className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between hover:bg-white/5 transition-colors ${filter === item.id ? 'text-purple-400 font-medium' : 'text-zinc-300'}`}
+                                                    >
+                                                        {item.label}
+                                                        {filter === item.id && <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]" />}
+                                                    </button>
+                                                ))}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-4">
-                    {/* ... (Кнопки Telegram и Connect те же самые) ... */}
+                    {/* Показываем платформы (бот/тг), чтобы юзер видел, что подключено,
+                        даже если не может видеть лидов. Либо можно скрыть тоже. */}
                     {telegramPlatform ? (
                         <motion.button onClick={() => setShowPlatformModal(true)} className="h-10 px-4 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-semibold flex items-center gap-2.5 transition-all hover:bg-blue-500/20 hover:border-blue-500/30 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)]">
                             <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span></span>
                             <Icons.Telegram /><span className="hidden sm:inline">Telegram Active</span>
                         </motion.button>
                     ) : null}
-                    {/* КНОПКА БОТА (Новая) */}
+
                     {telegramBot ? (
                         <motion.button
                             whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
@@ -590,66 +651,126 @@ export default function PipelinePage() {
                             <span className="hidden sm:inline">Bot Active</span>
                         </motion.button>
                     ) : null}
+
+                    {/* Кнопка Connect Platform всегда доступна, но внутри нее будет редирект на прайсинг */}
                     <Link href="/dashboard/connect"><motion.button className="h-10 px-5 rounded-full bg-white text-black text-sm font-semibold flex items-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] hover:shadow-[0_0_30px_rgba(255,255,255,0.25)] transition-all"><Icons.Plus /> Connect Platform</motion.button></Link>
                 </div>
             </header>
 
-            {/* BOARD */}
-            <DragDropContext onDragEnd={onDragEnd}>
-                <div className="flex-1 overflow-x-auto overflow-y-hidden p-8 z-10">
-                    <div className="flex h-full gap-8">
-                        {statuses.map((status) => {
-                            // ИСПОЛЬЗУЕМ НОВУЮ ФУНКЦИЮ ФИЛЬТРАЦИИ
-                            const columnLeads = getFilteredLeads(status._id);
+            {/* --- BODY --- */}
 
-                            return (
-                                <div key={status._id} className="w-[340px] flex flex-col shrink-0">
-                                    <div className="flex items-center justify-between mb-5 px-1">
-                                        <div className="flex items-center gap-3">
-                                            <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-wide">{status.name}</h2>
-                                            <span className="bg-white/5 border border-white/5 text-zinc-400 text-xs font-mono font-medium px-2 py-0.5 rounded-md min-w-[24px] text-center">{columnLeads.length}</span>
-                                        </div>
-                                        <button className="text-zinc-600 hover:text-white transition-colors p-1 hover:bg-white/5 rounded"><Icons.Dots /></button>
-                                    </div>
+            {/* 1. Если ПРЕМИУМ -> Показываем доску */}
+            {user?.is_premium ? (
+                <>
+                    {/* Modals */}
+                    <AnimatePresence>
+                        {selectedLead && <ChatModal key="chat" lead={selectedLead} onClose={() => setSelectedLead(null)} onUpdate={handleLeadUpdate} />}
+                        {showCreateStatus && <CreateStatusModal key="status" onClose={() => setShowCreateStatus(false)} onCreated={fetchData} />}
+                        {showPlatformModal && telegramPlatform && <PlatformDetailsModal key="platform" platform={telegramPlatform} onClose={() => setShowPlatformModal(false)} />}
+                        {noteModalLead && <AddNoteModal key="note" onClose={() => setNoteModalLead(null)} onSaved={handleSaveNote} />}
+                        {toastMessage && <Toast key="toast" message={toastMessage} onClose={() => setToastMessage("")} />}
+                        {showBotModal && telegramBot && (
+                            <BotDetailsModal
+                                key="bot-modal"
+                                bot={telegramBot}
+                                onClose={() => setShowBotModal(false)}
+                                onDisconnect={handleDisconnectBot}
+                            />
+                        )}
+                    </AnimatePresence>
 
-                                    <Droppable droppableId={status._id}>
-                                        {(provided, snapshot) => (
-                                            <div
-                                                {...provided.droppableProps}
-                                                ref={provided.innerRef}
-                                                className={`flex-1 rounded-2xl flex flex-col gap-0 overflow-y-auto custom-scrollbar transition-colors ${snapshot.isDraggingOver ? 'bg-white/[0.02] ring-1 ring-white/5' : ''}`}
-                                            >
-                                                {columnLeads.length > 0 ? columnLeads.map((lead, index) => (
-                                                    <LeadCard
-                                                        key={lead._id}
-                                                        lead={lead}
-                                                        index={index}
-                                                        onClick={() => setSelectedLead(lead)}
-                                                        onDelete={handleDeleteLead}
-                                                        onAddNote={(l) => setNoteModalLead(l)}
-                                                        onDeleteNote={handleDeleteNote}
-                                                    />
-                                                )) : (
-                                                    status.order === 0 ? (
-                                                        <div className="h-40 flex flex-col items-center justify-center text-zinc-600 border border-dashed border-white/10 rounded-2xl m-1">
-                                                            {!telegramPlatform ? <><div className="mb-2 p-3 bg-zinc-900 rounded-full border border-white/5"><Icons.Telegram /></div><span className="text-xs">Waiting for Telegram...</span></> : <span className="text-xs font-medium">No new leads</span>}
-                                                        </div>
-                                                    ) : null
-                                                )}
-                                                {provided.placeholder}
+                    {/* Board */}
+                    <DragDropContext onDragEnd={onDragEnd}>
+                        <div className="flex-1 overflow-x-auto overflow-y-hidden p-8 z-10">
+                            <div className="flex h-full gap-8">
+                                {statuses.map((status) => {
+                                    const columnLeads = getFilteredLeads(status._id);
+                                    return (
+                                        <div key={status._id} className="w-[340px] flex flex-col shrink-0">
+                                            <div className="flex items-center justify-between mb-5 px-1">
+                                                <div className="flex items-center gap-3">
+                                                    <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-wide">{status.name}</h2>
+                                                    <span className="bg-white/5 border border-white/5 text-zinc-400 text-xs font-mono font-medium px-2 py-0.5 rounded-md min-w-[24px] text-center">{columnLeads.length}</span>
+                                                </div>
+                                                <button className="text-zinc-600 hover:text-white transition-colors p-1 hover:bg-white/5 rounded"><Icons.Dots /></button>
                                             </div>
-                                        )}
-                                    </Droppable>
+
+                                            <Droppable droppableId={status._id}>
+                                                {(provided, snapshot) => (
+                                                    <div
+                                                        {...provided.droppableProps}
+                                                        ref={provided.innerRef}
+                                                        className={`flex-1 rounded-2xl flex flex-col gap-0 overflow-y-auto custom-scrollbar transition-colors ${snapshot.isDraggingOver ? 'bg-white/[0.02] ring-1 ring-white/5' : ''}`}
+                                                    >
+                                                        {columnLeads.length > 0 ? columnLeads.map((lead, index) => (
+                                                            <LeadCard
+                                                                key={lead._id}
+                                                                lead={lead}
+                                                                index={index}
+                                                                onClick={() => setSelectedLead(lead)}
+                                                                onDelete={handleDeleteLead}
+                                                                onAddNote={(l) => setNoteModalLead(l)}
+                                                                onDeleteNote={handleDeleteNote}
+                                                            />
+                                                        )) : (
+                                                            status.order === 0 ? (
+                                                                <div className="h-40 flex flex-col items-center justify-center text-zinc-600 border border-dashed border-white/10 rounded-2xl m-1">
+                                                                    {!telegramPlatform && !telegramBot ? <><div className="mb-2 p-3 bg-zinc-900 rounded-full border border-white/5"><Icons.Telegram /></div><span className="text-xs">Waiting for leads...</span></> : <span className="text-xs font-medium">No new leads</span>}
+                                                                </div>
+                                                            ) : null
+                                                        )}
+                                                        {provided.placeholder}
+                                                    </div>
+                                                )}
+                                            </Droppable>
+                                        </div>
+                                    );
+                                })}
+                                <div className="w-[340px] shrink-0 pt-12 px-2 opacity-50 hover:opacity-100 transition-opacity">
+                                    <button onClick={() => setShowCreateStatus(true)} className="w-full h-12 border border-dashed border-white/20 rounded-xl text-zinc-400 hover:text-white hover:border-white/40 hover:bg-white/5 transition-all text-sm font-medium flex items-center justify-center gap-2"><Icons.Plus /> Add New Stage</button>
                                 </div>
-                            );
-                        })}
-                        {/* ... (Кнопка Add Stage) ... */}
-                        <div className="w-[340px] shrink-0 pt-12 px-2 opacity-50 hover:opacity-100 transition-opacity">
-                            <button onClick={() => setShowCreateStatus(true)} className="w-full h-12 border border-dashed border-white/20 rounded-xl text-zinc-400 hover:text-white hover:border-white/40 hover:bg-white/5 transition-all text-sm font-medium flex items-center justify-center gap-2"><Icons.Plus /> Add New Stage</button>
+                            </div>
                         </div>
-                    </div>
+                    </DragDropContext>
+                </>
+            ) : (
+
+                // 2. Если НЕТ ПРЕМИУМА -> Показываем Paywall
+                <div className="flex-1 flex flex-col items-center justify-center relative z-10 p-6">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className="max-w-lg w-full bg-[#09090b] border border-white/10 rounded-3xl p-10 text-center shadow-2xl relative overflow-hidden"
+                    >
+                        {/* Glow */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 blur-[100px] pointer-events-none" />
+
+                        <div className="mb-6 inline-flex p-4 rounded-full bg-zinc-900 border border-white/5 text-zinc-400 shadow-inner">
+                            <Icons.Lock />
+                        </div>
+
+                        <h2 className="text-3xl font-bold text-white mb-3">Unlock Your Pipeline</h2>
+                        <p className="text-zinc-400 mb-8 text-lg leading-relaxed">
+                            Your trial has ended. To view your leads, manage chats, and use AI features, please upgrade to the Pro plan.
+                        </p>
+
+                        <Link href="/pricing">
+                            <motion.button
+                                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                                className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-lg shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 transition-all"
+                            >
+                                Upgrade Now
+                            </motion.button>
+                        </Link>
+
+                        <p className="mt-6 text-xs text-zinc-600 flex items-center justify-center gap-2">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            Secure payment via Stripe. Cancel anytime.
+                        </p>
+                    </motion.div>
                 </div>
-            </DragDropContext>
+            )}
+
         </div>
     );
 }

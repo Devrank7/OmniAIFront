@@ -9,6 +9,8 @@ interface User {
     email: string;
     avatar?: string;
     business_context?: string;
+    is_premium?: boolean;
+
 }
 
 interface UserState {

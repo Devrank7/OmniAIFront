@@ -1,8 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useUserStore } from "@/store/useStore"; // <--- Импорт стора
+import { useRouter } from "next/navigation";     // <--- Импорт роутера
 
 const Platforms = [
     {
@@ -17,7 +19,6 @@ const Platforms = [
         name: 'Telegram Bot API',
         description: 'Connect via @BotFather token',
         color: 'bg-indigo-500',
-        // Иконка робота
         icon: 'M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z'
     },
     { id: 'whatsapp', name: 'WhatsApp', description: 'Business API', color: 'bg-green-500', disabled: true },
@@ -25,6 +26,29 @@ const Platforms = [
 ];
 
 export default function ConnectPlatformPage() {
+    const { user, isLoading } = useUserStore();
+    const router = useRouter();
+
+    // --- ПРОВЕРКА ПОДПИСКИ ---
+    useEffect(() => {
+        // Ждем пока загрузится юзер
+        if (!isLoading && user) {
+            // Если НЕ премиум — выкидываем на прайсинг
+            if (!user.is_premium) {
+                router.replace('/pricing?error=premium_required');
+            }
+        }
+    }, [user, isLoading, router]);
+
+    // Показываем спиннер, пока идет проверка или если юзер не премиум (чтобы не мелькал контент перед редиректом)
+    if (isLoading || (user && !user.is_premium)) {
+        return (
+            <div className="flex-1 flex items-center justify-center">
+                <div className="w-8 h-8 border-4 border-zinc-800 border-t-purple-500 rounded-full animate-spin" />
+            </div>
+        );
+    }
+
     return (
         <div className="flex-1 p-6 lg:p-12 overflow-y-auto">
             <div className="max-w-5xl mx-auto">
@@ -52,7 +76,6 @@ export default function ConnectPlatformPage() {
                                         {platform.description || (platform.disabled ? 'Coming Soon' : 'Available')}
                                     </p>
                                 </div>
-                                {/* Glow Effect */}
                                 <div className={`absolute top-[-50%] right-[-50%] w-full h-full ${platform.color} opacity-20 blur-[80px] group-hover:opacity-40 transition-opacity duration-500`} />
                             </motion.div>
                         </Link>

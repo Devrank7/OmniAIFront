@@ -125,7 +125,7 @@ export default function Home() {
               {mounted && user ? (
                   // ЕСЛИ АВТОРИЗОВАН
                   <>
-                    <Link href="/dashboard/profile" className="hidden sm:flex items-center gap-2 text-sm font-medium text-zinc-300 hover:text-white transition-colors">
+                    <Link href="/profile" className="hidden sm:flex items-center gap-2 text-sm font-medium text-zinc-300 hover:text-white transition-colors">
                       {user.avatar ? (
                           <img src={user.avatar} alt="Ava" className="w-8 h-8 rounded-full border border-white/10" />
                       ) : (
@@ -223,16 +223,6 @@ export default function Home() {
                     className="w-full h-14 px-8 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold text-lg flex items-center justify-center gap-2"
                 >
                   {mounted && user ? "Open Dashboard" : "Get Started"}
-                </motion.button>
-              </Link>
-
-              <Link href="#demo" className="w-full sm:w-auto">
-                <motion.button
-                    whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.1)" }}
-                    whileTap={{ scale: 0.95 }}
-                    className="w-full h-14 px-8 rounded-full border border-zinc-700 bg-zinc-900/50 text-zinc-300 font-medium text-lg flex items-center justify-center"
-                >
-                  Посмотреть демо
                 </motion.button>
               </Link>
             </motion.div>
