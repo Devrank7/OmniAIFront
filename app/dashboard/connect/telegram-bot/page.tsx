@@ -3,10 +3,14 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { useUserStore } from "@/store/useStore"; // <--- 1. Импорт
 
 export default function ConnectTelegramBotPage() {
     const router = useRouter();
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
+
+    // <--- 2. Достаем функцию обновления
+    const { fetchUser } = useUserStore();
 
     const [token, setToken] = useState("");
     const [startMessage, setStartMessage] = useState("Hello! I am your AI assistant. How can I help?");
@@ -33,6 +37,9 @@ export default function ConnectTelegramBotPage() {
 
             const data = await res.json();
             if (!data.success) throw new Error(data.message);
+
+            // <--- 3. ОБНОВЛЯЕМ ДАННЫЕ ЮЗЕРА ПЕРЕД ПЕРЕХОДОМ
+            await fetchUser();
 
             // Успех -> Возвращаемся в дашборд
             router.push("/dashboard");

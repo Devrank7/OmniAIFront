@@ -51,6 +51,7 @@ export const useUserStore = create<UserState>((set) => ({
             // Если ошибка — сбрасываем юзера и чистим токен
             localStorage.removeItem("token");
             set({ user: null, isLoading: false, error: error.message });
+            throw error;
         }
     },
 

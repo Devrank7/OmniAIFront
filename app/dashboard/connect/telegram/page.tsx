@@ -3,23 +3,26 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { useUserStore } from "@/store/useStore"; // <--- 1. ИМПОРТИРУЕМ STORE
 
 export default function TelegramConnectPage() {
     const router = useRouter();
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
 
-    const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Phone, 2: Code, 3: Password
+    // <--- 2. ДОСТАЕМ МЕТОД ОБНОВЛЕНИЯ ЮЗЕРА
+    const { fetchUser } = useUserStore();
+
+    const [step, setStep] = useState<1 | 2 | 3>(1);
     const [phone, setPhone] = useState("");
     const [code, setCode] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    // ШАГ 1: ОТПРАВИТЬ НОМЕР
+    // ШАГ 1: ОТПРАВИТЬ НОМЕР (без изменений)
     const handleSendPhone = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true); setError("");
-
         try {
             const token = localStorage.getItem("token");
             const res = await fetch(`${API_URL}/telegram/send-code`, {
@@ -29,7 +32,6 @@ export default function TelegramConnectPage() {
             });
             const data = await res.json();
             if (!data.success) throw new Error(data.message);
-
             setStep(2);
         } catch (err: any) {
             setError(err.message);
@@ -54,9 +56,11 @@ export default function TelegramConnectPage() {
             if (!data.success) throw new Error(data.message);
 
             if (data.requires2FA) {
-                setStep(3); // Нужен пароль
+                setStep(3);
             } else {
-                router.push("/dashboard?connected=true"); // Успех!
+                // <--- 3. УСПЕХ! ОБНОВЛЯЕМ ДАННЫЕ ПЕРЕД РЕДИРЕКТОМ
+                await fetchUser();
+                router.push("/dashboard?connected=true");
             }
         } catch (err: any) {
             setError(err.message);
@@ -80,6 +84,8 @@ export default function TelegramConnectPage() {
             const data = await res.json();
             if (!data.success) throw new Error(data.message);
 
+            // <--- 4. УСПЕХ! ОБНОВЛЯЕМ ДАННЫЕ ПЕРЕД РЕДИРЕКТОМ
+            await fetchUser();
             router.push("/dashboard?connected=true");
         } catch (err: any) {
             setError(err.message);
@@ -95,6 +101,7 @@ export default function TelegramConnectPage() {
                 animate={{ opacity: 1, y: 0 }}
                 className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-white/10 p-8 rounded-2xl relative"
             >
+                {/* ... Ваш JSX код без изменений ... */}
                 <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mb-6 mx-auto">
                     <svg className="w-6 h-6 text-white fill-current" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.48-1.05-2.4-1.66-1.06-.7-.38-1.09.24-1.73.16-.17 2.93-2.69 2.98-2.92.01-.03.01-.14-.05-.2-.06-.07-.17-.04-.25-.02-.11.02-1.91 1.2-5.39 3.56-.51.35-.96.52-1.37.51-.45-.01-1.32-.26-1.96-.46-.79-.25-1.42-.38-1.37-.81.03-.22.33-.44.91-.67 3.55-1.55 5.93-2.57 7.13-3.07 3.41-1.41 4.12-1.66 4.58-1.67.1 0 .32.02.47.14.12.11.16.26.17.41 0 .06.01.27-.01.39z" /></svg>
                 </div>

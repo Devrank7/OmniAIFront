@@ -26,8 +26,11 @@ export default function BusinessContextPage() {
             setText(user.business_context);
         }
     }, [user]);
+    const minLength = 300;
+    const maxLength = 1000000;
 
     const handleSave = async () => {
+        if (text.length < minLength) return;
         setLoading(true);
         setSaved(false);
         try {
@@ -74,19 +77,23 @@ export default function BusinessContextPage() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={handleSave}
-                    disabled={loading}
+                    disabled={loading || text.length < minLength} // Блокируем
                     className={`
                         flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm shadow-lg transition-all
                         ${saved
                         ? "bg-green-500 text-black hover:bg-green-400 shadow-green-500/20"
-                        : "bg-white text-black hover:bg-zinc-200 shadow-white/10"
+                        : text.length < minLength
+                            ? "bg-zinc-800 text-zinc-500 cursor-not-allowed" // Стиль для заблокированной кнопки
+                            : "bg-white text-black hover:bg-zinc-200 shadow-white/10"
                     }
                     `}
                 >
                     {loading ? (
                         <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin"/>
                     ) : saved ? (
-                        <><span>Saved!</span> <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg></>
+                        <><span>Saved!</span> ...</>
+                    ) : text.length < minLength ? (
+                        <span>Need {minLength - text.length} more chars</span>
                     ) : (
                         <><span>Save Changes</span> <SaveIcon /></>
                     )}
@@ -108,9 +115,12 @@ export default function BusinessContextPage() {
                         spellCheck={false}
                     />
 
-                    {/* Stats Footer inside the box */}
-                    <div className="absolute bottom-4 right-6 text-xs text-zinc-600 font-mono bg-[#09090b]/80 px-2 py-1 rounded backdrop-blur">
-                        {text.length.toLocaleString()} / 1,000,000 chars
+                    {/* Stats Footer */}
+                    <div className={`absolute bottom-4 right-6 text-xs font-mono bg-[#09090b]/80 px-2 py-1 rounded backdrop-blur transition-colors ${text.length < minLength ? 'text-red-400' : 'text-zinc-600'}`}>
+                        {text.length < minLength
+                            ? `Minimum ${minLength} chars required (${text.length}/${minLength})`
+                            : `${text.length.toLocaleString()} / ${maxLength.toLocaleString()}`
+                        }
                     </div>
                 </div>
             </motion.div>

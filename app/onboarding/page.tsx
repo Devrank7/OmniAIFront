@@ -17,8 +17,10 @@ export default function OnboardingPage() {
     const [error, setError] = useState("");
 
     const maxLength = 1000000;
+    const minLength = 300;
 
     const handleSubmit = async () => {
+        if (text.length < minLength) return;
         if (!text.trim()) return;
         setLoading(true);
         setError("");
@@ -82,10 +84,29 @@ export default function OnboardingPage() {
                             className="w-full h-[50vh] bg-transparent text-zinc-200 p-6 resize-none focus:outline-none text-base leading-relaxed scrollbar-hide placeholder-zinc-700"
                             placeholder="Example: We are a digital marketing agency called 'Omni'..."
                         />
-                        <div className="absolute bottom-4 right-6 text-xs text-zinc-600 font-mono">
-                            {text.length.toLocaleString()} / {maxLength.toLocaleString()} chars
+                        <div className={`absolute bottom-4 right-6 text-xs font-mono transition-colors ${text.length < minLength ? 'text-red-400' : 'text-green-400'}`}>
+                            {text.length < minLength
+                                ? `${text.length} / ${minLength} min chars`
+                                : `${text.length.toLocaleString()} / ${maxLength.toLocaleString()}`
+                            }
                         </div>
                     </div>
+                </div>
+
+                {/* ... Error Message ... */}
+
+                <div className="mt-8 flex justify-end">
+                    <button
+                        onClick={handleSubmit}
+                        disabled={loading || text.length < minLength} // Блокируем кнопку
+                        className="group relative px-8 py-4 bg-white text-black font-bold text-lg rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(255,255,255,0.5)] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none overflow-hidden"
+                    >
+                        <span className="relative z-10 flex items-center gap-2">
+                            {loading ? "Training AI..." : text.length < minLength ? `Type ${minLength - text.length} more` : "Finish Setup"}
+                            {!loading && text.length >= minLength && <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>}
+                        </span>
+                        {/* ... Gradient ... */}
+                    </button>
                 </div>
 
                 {error && (
@@ -93,20 +114,6 @@ export default function OnboardingPage() {
                         {error}
                     </motion.div>
                 )}
-
-                <div className="mt-8 flex justify-end">
-                    <button
-                        onClick={handleSubmit}
-                        disabled={loading || text.length === 0}
-                        className="group relative px-8 py-4 bg-white text-black font-bold text-lg rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(255,255,255,0.5)] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none overflow-hidden"
-                    >
-                        <span className="relative z-10 flex items-center gap-2">
-                            {loading ? "Training AI..." : "Finish Setup"}
-                            {!loading && <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>}
-                        </span>
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-200 to-blue-200 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </button>
-                </div>
             </motion.div>
         </div>
     );
