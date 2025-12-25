@@ -12,6 +12,7 @@ export const useSocket = () => {
 
         // Создаем подключение
         const socketInstance = io(API_URL, {
+            path: "/socket.io/",
             auth: { token }, // Передаем токен для авторизации
             transports: ['websocket'] // Форсируем вебсокеты
         });
