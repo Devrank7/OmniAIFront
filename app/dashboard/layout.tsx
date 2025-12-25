@@ -1,11 +1,18 @@
 "use client";
+
+// Force dynamic rendering for the entire dashboard
 export const dynamic = "force-dynamic";
-import React, { useEffect, useState } from "react";
+
+import React, { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation"; // REMOVED useSearchParams
 import { useUserStore } from "@/store/useStore";
 import { motion, AnimatePresence } from "framer-motion";
-// --- ИКОНКИ (Слегка обновленные для стиля) ---
+
+// Import the new helper component
+import AuthTokenHandler from "./components/AuthTokenHandler";
+
+// --- ICONS ---
 const Icons = {
     Logo: () => (
         <div className="w-9 h-9 relative group">
@@ -22,7 +29,6 @@ const Icons = {
     ChevronRight: (props: any) => <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
 };
 
-// --- КОМПОНЕНТ ПУНКТА МЕНЮ С АНИМАЦИЕЙ ---
 const NavItem = ({ href, icon: Icon, label, isActive }: { href: string; icon: any; label: string; isActive: boolean }) => {
     return (
         <Link href={href} className="relative group block w-full">
@@ -38,8 +44,6 @@ const NavItem = ({ href, icon: Icon, label, isActive }: { href: string; icon: an
             <div className={`relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${isActive ? 'text-purple-300' : 'text-zinc-400 group-hover:text-white'}`}>
                 <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]' : 'group-hover:scale-110'}`} />
                 <span className="font-medium text-sm tracking-wide">{label}</span>
-
-                {/* Glow Dot for active */}
                 {isActive && <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_10px_currentColor]" />}
             </div>
         </Link>
@@ -49,22 +53,20 @@ const NavItem = ({ href, icon: Icon, label, isActive }: { href: string; icon: an
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
-    const searchParams = useSearchParams();
+    // REMOVED: const searchParams = useSearchParams();
 
     const { user, fetchUser, isLoading } = useUserStore();
     const [isChecking, setIsChecking] = useState(true);
 
-    // --- AUTH LOGIC (Без изменений, свернуто для краткости) ---
     useEffect(() => {
         const initAuth = async () => {
-            const tokenFromUrl = searchParams.get('token');
-            let currentToken = localStorage.getItem("token");
+            // Note: We handle token from URL in AuthTokenHandler component now.
+            // Here we just check localStorage.
 
-            if (tokenFromUrl) {
-                localStorage.setItem("token", tokenFromUrl);
-                currentToken = tokenFromUrl;
-                window.history.replaceState(null, '', '/dashboard');
-            }
+            // Small delay to let AuthTokenHandler run if needed
+            await new Promise(r => setTimeout(r, 50));
+
+            let currentToken = localStorage.getItem("token");
 
             if (!currentToken) {
                 router.replace("/signin");
@@ -108,13 +110,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return (
         <div className="min-h-screen bg-[#020202] text-white font-sans flex overflow-hidden selection:bg-purple-500/30">
 
+            {/* THIS FIXES THE BUILD ERROR: Suspense wrapper for SearchParams */}
+            <Suspense fallback={null}>
+                <AuthTokenHandler />
+            </Suspense>
+
             {/* Global Noise Overlay */}
             <div className="fixed inset-0 pointer-events-none opacity-[0.02] z-[9999]" style={{backgroundImage: 'url("https://grainy-gradients.vercel.app/noise.svg")'}} />
 
             {/* --- SIDEBAR --- */}
             <aside className="w-20 lg:w-72 bg-[#09090b]/60 backdrop-blur-2xl border-r border-white/5 flex flex-col justify-between p-4 z-50 transition-all duration-300 relative">
-
-                {/* Logo Area */}
                 <div>
                     <div className="flex items-center gap-3 mb-10 px-2 mt-2">
                         <Icons.Logo />
@@ -126,27 +131,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </div>
                     </div>
 
-                    {/* Navigation */}
                     <nav className="space-y-2">
                         <p className="hidden lg:block px-4 text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2 mt-6">Menu</p>
-
                         <NavItem href="/dashboard" icon={Icons.Board} label="Pipeline" isActive={isActive('/dashboard')} />
                         <NavItem href="/dashboard/context" icon={Icons.Brain} label="Business Context" isActive={isActive('/dashboard/context')} />
-
                         <p className="hidden lg:block px-4 text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2 mt-6">Settings</p>
-
                         <NavItem href="/profile" icon={Icons.Profile} label="My Profile" isActive={isActive('/dashboard/profile')} />
                         <NavItem href="/dashboard/subscription" icon={Icons.CreditCard} label="Subscription" isActive={isActive('/dashboard/subscription')} />
                     </nav>
                 </div>
 
-                {/* User Footer Card */}
                 <div className="pt-4 border-t border-white/5">
                     <Link href="/profile">
                         <div className="group relative flex items-center gap-3 p-3 rounded-2xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-white/10 transition-all duration-300 cursor-pointer overflow-hidden">
-                            {/* Hover Glow */}
                             <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
                             <div className="relative">
                                 {user?.avatar ? (
                                     <img src={user.avatar} alt="User" className="w-10 h-10 rounded-full object-cover border border-white/10" />
@@ -155,10 +153,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                         {user?.first_name?.[0]?.toUpperCase() || "U"}
                                     </div>
                                 )}
-                                {/* Online Status */}
                                 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#09090b] rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
                             </div>
-
                             <div className="hidden lg:block overflow-hidden relative z-10 flex-1">
                                 <div className="text-sm font-semibold text-zinc-200 group-hover:text-white transition-colors truncate">
                                     {user?.first_name} {user?.last_name}
@@ -167,7 +163,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     {user.is_premium ? 'Pro Plan' : 'Free Plan'}
                                 </div>
                             </div>
-
                             <div className="hidden lg:block text-zinc-600 group-hover:text-white transition-colors">
                                 <Icons.ChevronRight className="w-4 h-4" />
                             </div>
@@ -178,13 +173,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* --- MAIN CONTENT AREA --- */}
             <main className="flex-1 flex flex-col relative overflow-hidden bg-black/90">
-                {/* Background Glows for Main Area */}
                 <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-purple-900/10 blur-[120px] rounded-full pointer-events-none opacity-50" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-900/10 blur-[120px] rounded-full pointer-events-none opacity-30" />
-
                 {children}
             </main>
-
         </div>
     );
 }

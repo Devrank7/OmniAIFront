@@ -1,15 +1,18 @@
 "use client";
 
-import React, { useEffect, useState, Suspense } from "react"; // <--- Добавили Suspense
-import { useRouter, useSearchParams } from "next/navigation";
+// Эта настройка обязательна
+import {PlatformDetailsModal} from "@/app/dashboard/page";
+
+export const dynamic = "force-dynamic";
+
+import React, { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation"; // Оставляем useSearchParams, теперь он безопасен
 import { motion, AnimatePresence } from "framer-motion";
 import { useUserStore } from "@/store/useStore";
 
-// Импортируем модалки
 import BotDetailsModal from "../components/BotDetailsModal";
-import {PlatformDetailsModal} from "@/app/dashboard/page";
-export const dynamic = "force-dynamic";
-// --- ТИПЫ ДАННЫХ ---
+
+// --- ТИПЫ ---
 interface TelegramInfo { _id: string; number: string; is_active: boolean; createdAt: string; }
 interface BotInfo { _id: string; bot_token: string; start_message: string; createdAt: string; }
 
@@ -32,13 +35,13 @@ const Platforms = [
     { id: 'instagram', name: 'Instagram', description: 'Direct Messages', color: 'bg-pink-500', disabled: true },
 ];
 
-// --- ВНУТРЕННИЙ КОМПОНЕНТ С ЛОГИКОЙ ---
-function ConnectPlatformContent() {
+export default function ConnectPlatformPage() {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
     const { user, isLoading } = useUserStore();
     const router = useRouter();
 
-    // Хук, который требовал Suspense (даже если ты его явно не вызывал, он может быть в зависимостях)
+    // Даже если мы просто вызываем хук, Next.js может ругаться.
+    // Наличие loading.tsx рядом решает эту проблему.
     const searchParams = useSearchParams();
 
     const [telegramData, setTelegramData] = useState<TelegramInfo | null>(null);
@@ -172,14 +175,5 @@ function ConnectPlatformContent() {
                 </div>
             </div>
         </div>
-    );
-}
-
-// --- ГЛАВНЫЙ ЭКСПОРТ (Обертка) ---
-export default function ConnectPlatformPage() {
-    return (
-        <Suspense fallback={<div className="flex-1 flex items-center justify-center bg-[#050505]"><div className="w-8 h-8 border-4 border-zinc-800 border-t-purple-500 rounded-full animate-spin" /></div>}>
-            <ConnectPlatformContent />
-        </Suspense>
     );
 }
