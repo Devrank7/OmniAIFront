@@ -8,7 +8,7 @@ import { useUserStore } from "@/store/useStore";
 // Импортируем модалки
 import BotDetailsModal from "../components/BotDetailsModal";
 import {PlatformDetailsModal} from "@/app/dashboard/page";
-
+export const dynamic = "force-dynamic";
 // --- ТИПЫ ДАННЫХ ---
 interface TelegramInfo { _id: string; number: string; is_active: boolean; createdAt: string; }
 interface BotInfo { _id: string; bot_token: string; start_message: string; createdAt: string; }

@@ -9,7 +9,7 @@ import ChatModal from "./components/ChatDrawer";
 import {useSocket} from "@/hooks/useSocket";
 import BotDetailsModal from "@/app/dashboard/components/BotDetailsModal";
 import ManageChatsModal from "@/app/dashboard/components/ManageChatsModal";
-
+export const dynamic = "force-dynamic";
 // --- ТИПЫ ---
 interface Status { _id: string; name: string; order: number; }
 interface TelegramBotInfo { _id: string; bot_token: string; start_message: string; createdAt: string; }
