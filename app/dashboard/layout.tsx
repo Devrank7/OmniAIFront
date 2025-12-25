@@ -60,19 +60,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     useEffect(() => {
         const initAuth = async () => {
-            // Note: We handle token from URL in AuthTokenHandler component now.
-            // Here we just check localStorage.
+            // 1. Сначала проверяем URL (это приоритет после редиректа от Google)
+            // Нам придется использовать window.location, так как useSearchParams мы убрали из-за ошибки билда.
+            // Это безопасно, так как это Client Component.
+            const urlParams = new URLSearchParams(window.location.search);
+            const tokenFromUrl = urlParams.get('token');
 
-            // Small delay to let AuthTokenHandler run if needed
-            await new Promise(r => setTimeout(r, 50));
+            if (tokenFromUrl) {
+                console.log("Token found in URL, saving...");
+                localStorage.setItem("token", tokenFromUrl);
+                // Чистим URL без перезагрузки
+                window.history.replaceState(null, '', '/dashboard');
+            }
 
-            let currentToken = localStorage.getItem("token");
+            // 2. Теперь читаем из localStorage (там уже будет токен, если он был в URL)
+            const currentToken = localStorage.getItem("token");
 
             if (!currentToken) {
+                console.log("No token found, redirecting to signin");
                 router.replace("/signin");
                 return;
             }
 
+            // 3. Если токен есть, проверяем юзера
             let currentUser = useUserStore.getState().user;
             if (!currentUser || (currentUser && !currentUser.business_context)) {
                 try {
@@ -80,6 +90,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     currentUser = useUserStore.getState().user;
                 } catch (error) {
                     console.error("Auth error:", error);
+                    // Если токен протух - выкидываем
+                    localStorage.removeItem("token");
+                    router.replace("/signin");
+                    return;
                 }
             }
 
@@ -87,10 +101,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 router.replace("/onboarding");
                 return;
             }
+
+            // Всё ок
             setIsChecking(false);
         };
+
         initAuth();
-    }, []);
+    }, []); // Запускаем 1 раз при маунте
 
     if (isChecking || (isLoading && !user)) {
         return (
