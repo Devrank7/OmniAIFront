@@ -14,7 +14,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # При сборке нам нужен URL API.
-# Если мы используем Nginx, то запросы будут идти на тот же домен /api
+# Если мы используем nginx, то запросы будут идти на тот же домен /api
 ENV NEXT_PUBLIC_API_URL=/api
 
 RUN npm run build
