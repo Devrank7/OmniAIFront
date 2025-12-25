@@ -1,11 +1,10 @@
 "use client";
-
+export const dynamic = "force-dynamic";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useUserStore } from "@/store/useStore";
 import { motion, AnimatePresence } from "framer-motion";
-export const dynamic = "force-dynamic";
 // --- ИКОНКИ (Слегка обновленные для стиля) ---
 const Icons = {
     Logo: () => (
