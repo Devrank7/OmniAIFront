@@ -7,7 +7,7 @@ import { useUserStore } from "@/store/useStore";
 
 // Импортируем модалки
 import BotDetailsModal from "../components/BotDetailsModal";
-import PlatformDetailsModal from "../components/PlatformDetailsModal";
+import {PlatformDetailsModal} from "@/app/dashboard/page";
 
 // --- ТИПЫ ДАННЫХ ---
 interface TelegramInfo { _id: string; number: string; is_active: boolean; createdAt: string; }
