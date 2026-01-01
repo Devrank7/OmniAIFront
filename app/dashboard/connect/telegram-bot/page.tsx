@@ -5,13 +5,15 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUserStore } from "@/store/useStore";
 
-// Иконки
+// --- ИКОНКИ ---
 const Icons = {
     Bot: () => <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>,
     Help: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     Paste: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>,
     External: () => <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>,
-    Close: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+    Close: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>,
+    Check: () => <svg className="w-12 h-12 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>,
+    Copy: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
 };
 
 export default function ConnectTelegramBotPage() {
@@ -23,7 +25,11 @@ export default function ConnectTelegramBotPage() {
     const [startMessage, setStartMessage] = useState("Hello! I am your AI assistant. How can I help?");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-    const [showGuide, setShowGuide] = useState(false); // По умолчанию скрыто
+    const [showGuide, setShowGuide] = useState(false);
+
+    // Новые стейты для успеха
+    const [isConnected, setIsConnected] = useState(false);
+    const [botUsername, setBotUsername] = useState(""); // Чтобы показать ссылку
 
     const isValidTokenFormat = (t: string) => /^\d+:[A-Za-z0-9_-]{35,}$/.test(t.trim());
 
@@ -52,10 +58,7 @@ export default function ConnectTelegramBotPage() {
             const authToken = localStorage.getItem("token");
             const res = await fetch(`${API_URL}/telegram-bot/connect`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${authToken}`
-                },
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` },
                 body: JSON.stringify({ token: cleanToken, start_message: startMessage }),
             });
 
@@ -63,7 +66,12 @@ export default function ConnectTelegramBotPage() {
             if (!data.success) throw new Error(data.message);
 
             await fetchUser();
-            router.push("/dashboard");
+
+            // Если сервер возвращает username бота - отлично, если нет - можно парсить из токена (не всегда работает) или просто не показывать
+            // Предположим, сервер вернул { success: true, username: 'MyBot' }
+            setBotUsername(data.username || "your_bot");
+
+            setIsConnected(true); // Переключаем на экран успеха
         } catch (err: any) {
             setError(err.message || "Failed to connect bot. Please check the token.");
         } finally {
@@ -71,18 +79,90 @@ export default function ConnectTelegramBotPage() {
         }
     };
 
+    // --- ЭКРАН УСПЕХА ---
+    if (isConnected) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 bg-[#050505] min-h-screen relative overflow-hidden">
+                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-05 pointer-events-none"/>
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-green-900/20 blur-[150px] rounded-full pointer-events-none" />
+
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="max-w-2xl w-full bg-[#09090b] border border-white/10 rounded-3xl p-8 md:p-12 shadow-2xl relative z-10"
+                >
+                    <div className="flex flex-col items-center text-center mb-10">
+                        <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mb-6 border border-green-500/20 shadow-[0_0_30px_rgba(34,197,94,0.2)]">
+                            <Icons.Check />
+                        </div>
+                        <h1 className="text-3xl font-bold text-white mb-3">Bot Connected Successfully!</h1>
+                        <p className="text-zinc-400 text-lg">Your AI Sales Agent is ready to work.</p>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-6 mb-10">
+                        {/* Карточка 1: Ссылка */}
+                        <div className="bg-white/5 border border-white/5 rounded-2xl p-6 hover:bg-white/[0.07] transition-colors">
+                            <div className="text-2xl mb-3">🔗</div>
+                            <h3 className="text-white font-bold mb-2">Share Your Link</h3>
+                            <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
+                                Put this link in your Instagram Bio, Website, or Ads. Clients will click and start chatting.
+                            </p>
+                            <div className="flex items-center gap-2 bg-black/40 rounded-lg p-2 border border-white/10">
+                                <code className="text-indigo-400 text-sm truncate flex-1">t.me/{botUsername}</code>
+                                <button
+                                    onClick={() => navigator.clipboard.writeText(`https://t.me/${botUsername}`)}
+                                    className="p-1.5 hover:bg-white/10 rounded text-zinc-400 hover:text-white transition-colors"
+                                    title="Copy Link"
+                                >
+                                    <Icons.Copy />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Карточка 2: Ценность */}
+                        <div className="bg-white/5 border border-white/5 rounded-2xl p-6 hover:bg-white/[0.07] transition-colors">
+                            <div className="text-2xl mb-3">🚀</div>
+                            <h3 className="text-white font-bold mb-2">What happens next?</h3>
+                            <ul className="space-y-3 text-sm text-zinc-400">
+                                <li className="flex gap-2">
+                                    <span className="text-green-400">✓</span>
+                                    AI will instantly reply to "Hi", "Price?", etc.
+                                </li>
+                                <li className="flex gap-2">
+                                    <span className="text-green-400">✓</span>
+                                    Leads will appear in your CRM Pipeline.
+                                </li>
+                                <li className="flex gap-2">
+                                    <span className="text-green-400">✓</span>
+                                    You can intervene and chat manually anytime.
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={() => router.push('/dashboard')}
+                        className="w-full py-4 bg-white text-black font-bold rounded-xl text-lg hover:bg-zinc-200 transition-all shadow-lg flex items-center justify-center gap-2"
+                    >
+                        Go to Dashboard <span aria-hidden="true">→</span>
+                    </button>
+                </motion.div>
+            </div>
+        );
+    }
+
+    // --- ЭКРАН ПОДКЛЮЧЕНИЯ (СТАРЫЙ КОД) ---
     return (
         <div className="flex-1 flex flex-col items-center justify-center p-4 lg:p-8 bg-[#050505] relative overflow-hidden min-h-screen font-sans">
             {/* Background Ambience */}
             <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-indigo-900/20 blur-[150px] rounded-full pointer-events-none" />
             <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-purple-900/20 blur-[150px] rounded-full pointer-events-none" />
 
-            {/* MAIN CONTAINER: Динамически расширяется */}
             <motion.div
-                layout // Включает плавную анимацию изменения размеров
+                layout
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 className="w-full bg-[#09090b] border border-white/10 rounded-3xl shadow-2xl relative z-10 flex flex-col md:flex-row overflow-hidden"
-                style={{ maxWidth: showGuide ? '1000px' : '500px' }} // Меняем ширину
+                style={{ maxWidth: showGuide ? '1000px' : '500px' }}
             >
                 {/* --- LEFT SIDE: FORM --- */}
                 <motion.div layout className="flex-1 p-8 md:p-10 flex flex-col justify-center min-w-[350px]">
@@ -98,12 +178,9 @@ export default function ConnectTelegramBotPage() {
 
                     <form onSubmit={handleConnect} className="space-y-6">
 
-                        {/* Token Input */}
                         <div className="space-y-2">
                             <div className="flex justify-between items-center">
                                 <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Bot Token</label>
-
-                                {/* Кнопка открытия гайда (меняется текст если открыто) */}
                                 <button
                                     type="button"
                                     onClick={() => setShowGuide(!showGuide)}
@@ -139,7 +216,6 @@ export default function ConnectTelegramBotPage() {
                             )}
                         </div>
 
-                        {/* Message Input */}
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Start Message</label>
                             <textarea
@@ -167,7 +243,7 @@ export default function ConnectTelegramBotPage() {
                     </form>
                 </motion.div>
 
-                {/* --- RIGHT SIDE: GUIDE (Animated Panel) --- */}
+                {/* --- RIGHT SIDE: GUIDE --- */}
                 <AnimatePresence>
                     {showGuide && (
                         <motion.div
@@ -175,7 +251,7 @@ export default function ConnectTelegramBotPage() {
                             animate={{ width: "auto", opacity: 1 }}
                             exit={{ width: 0, opacity: 0 }}
                             transition={{ type: "spring", bounce: 0, duration: 0.4 }}
-                            className="bg-zinc-900/50 border-l border-white/5 overflow-hidden flex flex-col md:w-[400px]" // Фиксируем ширину панели
+                            className="bg-zinc-900/50 border-l border-white/5 overflow-hidden flex flex-col md:w-[400px]"
                         >
                             <div className="p-8 min-w-[320px] h-full flex flex-col justify-center">
                                 <h3 className="text-white text-lg font-bold mb-6 flex items-center gap-3">

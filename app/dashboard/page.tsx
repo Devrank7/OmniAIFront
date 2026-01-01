@@ -101,89 +101,99 @@ function LeadCard({ lead, index, onDelete, onAddNote, onDeleteNote, onClick }: {
                     ref={provided.innerRef}
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
+                    // ВАЖНО: Стиль библиотеки применяется к этому внешнему контейнеру
                     style={{ ...provided.draggableProps.style }}
+                    className="mb-3 outline-none" // Оставляем только отступы, убираем визуал
                     onClick={onClick}
-                    className={`
-            relative group mb-3 rounded-xl p-4 cursor-pointer transition-all duration-300
-            ${snapshot.isDragging
-                        ? 'bg-zinc-800/90 shadow-[0_0_30px_rgba(168,85,247,0.3)] ring-2 ring-purple-500/50 scale-105 z-50'
-                        : 'bg-[#18181b]/60 backdrop-blur-md border border-white/5 hover:border-purple-500/30 hover:bg-[#18181b]/80 hover:shadow-[0_4px_20px_rgba(0,0,0,0.4)]'}
-          `}
                 >
-                    {/* Индикатор, что есть заметка (маленький уголок) */}
-                    {lead.note && (
-                        <div className="absolute top-0 right-0 pointer-events-none">
-                            <div className="w-0 h-0 border-t-[20px] border-l-[20px] border-t-yellow-500/20 border-l-transparent rounded-tr-xl"></div>
-                        </div>
-                    )}
+                    {/* ВНУТРЕННИЙ КОНТЕЙНЕР ДЛЯ ВИЗУАЛА И АНИМАЦИИ */}
+                    <div
+                        className={`
+                            relative group p-4 rounded-xl cursor-pointer transition-all duration-300
+                            bg-[#18181b]/60 backdrop-blur-md border border-white/5
+                            
+                            ${snapshot.isDragging
+                            ? 'bg-zinc-800/90 shadow-[0_0_30px_rgba(168,85,247,0.3)] ring-2 ring-purple-500/50 scale-105' // Scale здесь безопасен
+                            : 'hover:border-purple-500/30 hover:bg-[#18181b]/80 hover:shadow-[0_4px_20px_rgba(0,0,0,0.4)]'
+                        }
+                        `}
+                    >
+                        {/* Весь контент карточки переносим сюда без изменений */}
 
-                    <div className="flex justify-between items-start mb-2 pr-4">
-                        <div className="flex items-center gap-3">
-                            <div className="relative">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 flex items-center justify-center text-sm font-bold text-white border border-white/10 shadow-inner">
-                                    {lead.username.charAt(0).toUpperCase()}
-                                </div>
-                                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#18181b] rounded-full"></div>
+                        {lead.note && (
+                            <div className="absolute top-0 right-0 pointer-events-none">
+                                <div className="w-0 h-0 border-t-[20px] border-l-[20px] border-t-yellow-500/20 border-l-transparent rounded-tr-xl"></div>
                             </div>
-
-                            <div className="flex flex-col">
-                                <span className="text-sm font-semibold text-zinc-100 truncate max-w-[130px] leading-tight">{lead.username}</span>
-                                <span className="text-[10px] text-zinc-500 flex items-center gap-1 mt-0.5 font-medium">
-                    <Icons.Telegram /> Telegram
-                 </span>
-                            </div>
-                        </div>
-
-                        {/* Меню */}
-                        <div className="absolute top-3 right-2" onClick={(e) => e.stopPropagation()}>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
-                                className="p-1.5 rounded-lg text-zinc-600 hover:text-white hover:bg-white/10 transition-colors opacity-0 group-hover:opacity-100"
-                            >
-                                <Icons.Dots />
-                            </button>
-                            <AnimatePresence>
-                                {showMenu && (
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                        className="absolute right-0 top-8 w-36 bg-[#0a0a0a] border border-zinc-800 rounded-xl shadow-2xl z-50 overflow-hidden ring-1 ring-white/10"
-                                    >
-                                        {!lead.note && <button onClick={(e) => { e.stopPropagation(); onAddNote(lead); }} className="w-full text-left px-3 py-2.5 text-xs text-zinc-300 hover:bg-zinc-900 flex items-center gap-2 transition-colors"><span className="text-zinc-500"><Icons.Note /></span> Add Note</button>}
-                                        {lead.note && <button onClick={(e) => { e.stopPropagation(); onDeleteNote(lead); }} className="w-full text-left px-3 py-2.5 text-xs text-zinc-300 hover:bg-zinc-900 flex items-center gap-2 transition-colors"><span className="text-zinc-500"><Icons.Trash /></span> Delete Note</button>}
-                                        <div className="h-px bg-white/5"></div>
-                                        <button onClick={(e) => { e.stopPropagation(); onDelete(lead._id); }} className="w-full text-left px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"><span className="text-red-500/70"><Icons.Trash /></span> Delete Lead</button>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    </div>
-
-                    {/* --- CONTENT AREA: NOTE OR MESSAGE --- */}
-                    <div className="mt-3 mb-3 min-h-[2.5em]">
-                        {lead.note ? (
-                            // ... (код заметки без изменений) ...
-                            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2 flex items-start gap-2">
-                                <span className="text-yellow-500 mt-0.5 shrink-0"><Icons.Note /></span>
-                                <p className="text-xs text-yellow-200/90 font-medium leading-snug line-clamp-2">
-                                    {lead.note}
-                                </p>
-                            </div>
-                        ) : (
-                            // 2. ОТОБРАЖЕНИЕ СООБЩЕНИЯ (ОБНОВЛЕНО)
-                            <p className="text-xs text-zinc-500 leading-relaxed pl-1">
-                                {renderLastMessage(lead.last_message)}
-                            </p>
                         )}
-                    </div>
 
-                    {/* Footer */}
-                    <div className="flex justify-between items-center pt-2 border-t border-white/5">
-             <span className={`text-[9px] font-bold px-2.5 py-1 rounded-md border tracking-wide ${tempBadge}`}>
-               {lead.temperature}
-             </span>
-                        <div className="text-[10px] font-medium text-zinc-600">
-                            {new Date(lead.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        <div className="flex justify-between items-start mb-2 pr-4">
+                            {/* ... Код шапки (аватар, имя, меню) ... */}
+                            {/* Вставьте сюда внутренности header-а из вашего старого кода */}
+                            <div className="flex items-center gap-3">
+                                <div className="relative">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 flex items-center justify-center text-sm font-bold text-white border border-white/10 shadow-inner">
+                                        {lead.username.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#18181b] rounded-full"></div>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-semibold text-zinc-100 truncate max-w-[130px] leading-tight">{lead.username}</span>
+                                    <span className="text-[10px] text-zinc-500 flex items-center gap-1 mt-0.5 font-medium">
+                                        <Icons.Telegram /> Telegram
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Меню (кнопка с точками) */}
+                            <div className="absolute top-3 right-2" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
+                                    className="p-1.5 rounded-lg text-zinc-600 hover:text-white hover:bg-white/10 transition-colors opacity-0 group-hover:opacity-100"
+                                >
+                                    <Icons.Dots />
+                                </button>
+                                <AnimatePresence>
+                                    {showMenu && (
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                            className="absolute right-0 top-8 w-36 bg-[#0a0a0a] border border-zinc-800 rounded-xl shadow-2xl z-50 overflow-hidden ring-1 ring-white/10"
+                                        >
+                                            {!lead.note && <button onClick={(e) => { e.stopPropagation(); onAddNote(lead); }} className="w-full text-left px-3 py-2.5 text-xs text-zinc-300 hover:bg-zinc-900 flex items-center gap-2 transition-colors"><span className="text-zinc-500"><Icons.Note /></span> Add Note</button>}
+                                            {lead.note && <button onClick={(e) => { e.stopPropagation(); onDeleteNote(lead); }} className="w-full text-left px-3 py-2.5 text-xs text-zinc-300 hover:bg-zinc-900 flex items-center gap-2 transition-colors"><span className="text-zinc-500"><Icons.Trash /></span> Delete Note</button>}
+                                            <div className="h-px bg-white/5"></div>
+                                            <button onClick={(e) => { e.stopPropagation(); onDelete(lead._id); }} className="w-full text-left px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"><span className="text-red-500/70"><Icons.Trash /></span> Delete Lead</button>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
                         </div>
+
+                        {/* Content Area */}
+                        <div className="mt-3 mb-3 min-h-[2.5em]">
+                            {lead.note ? (
+                                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2 flex items-start gap-2">
+                                    <span className="text-yellow-500 mt-0.5 shrink-0"><Icons.Note /></span>
+                                    <p className="text-xs text-yellow-200/90 font-medium leading-snug line-clamp-2">
+                                        {lead.note}
+                                    </p>
+                                </div>
+                            ) : (
+                                <p className="text-xs text-zinc-500 leading-relaxed pl-1">
+                                    {renderLastMessage(lead.last_message)}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex justify-between items-center pt-2 border-t border-white/5">
+                             <span className={`text-[9px] font-bold px-2.5 py-1 rounded-md border tracking-wide ${tempBadge}`}>
+                               {lead.temperature}
+                             </span>
+                            <div className="text-[10px] font-medium text-zinc-600">
+                                {new Date(lead.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             )}
