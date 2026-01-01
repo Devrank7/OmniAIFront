@@ -43,21 +43,31 @@ const Icons = {
     Lock: () => <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
 };
 
+
 // --- КОМПОНЕНТ КАРТОЧКИ ---
-function LeadCard({ lead, index, onDelete, onAddNote, onDeleteNote, onClick }: {
-    lead: Lead; index: number;
-    onDelete: (id: string) => void;
-    onAddNote: (lead: Lead) => void;
-    onDeleteNote: (lead: Lead) => void;
-    onClick: () => void;
-}) {
+const LeadCard = ({ lead, index, onDelete, onAddNote, onDeleteNote, onClick }: any) => {
     const [showMenu, setShowMenu] = useState(false);
 
     useEffect(() => {
         const close = () => setShowMenu(false);
-        if(showMenu) document.addEventListener('click', close);
+        if (showMenu) document.addEventListener('click', close);
         return () => document.removeEventListener('click', close);
     }, [showMenu]);
+
+    // Функция для очистки стилей от конфликтов
+    // Она убирает стандартную анимацию библиотеки, чтобы вы могли управлять ею сами
+    // И, что важно, решает конфликт с Tailwind
+    function getStyle(style: any, snapshot: any) {
+        if (!snapshot.isDropAnimating) {
+            return style;
+        }
+        // Если карточка падает на место, позволяем библиотеке анимировать это
+        return {
+            ...style,
+            // Убираем принудительную длительность, если она есть
+            transitionDuration: `0.001s`,
+        };
+    }
 
     const tempBadge = {
         COLD: "bg-blue-500/10 text-blue-400 border-blue-500/20",
@@ -65,33 +75,11 @@ function LeadCard({ lead, index, onDelete, onAddNote, onDeleteNote, onClick }: {
         HOT: "bg-red-500/10 text-red-400 border-red-500/20",
     }[lead.temperature] || "bg-zinc-800 text-zinc-400";
 
-    // Логика обрезки текста
-    const truncateText = (text: string, length: number) => {
-        if (!text) return "";
-        return text.length > length ? text.substring(0, length) + "..." : text;
-    };
     const renderLastMessage = (text?: string) => {
         if (!text) return <span className="italic opacity-50">No messages yet</span>;
-
-        // Проверка на JSON от ИИ (если в базе старые данные)
-        if (text.trim().startsWith('{') && text.includes('"reasoning"')) {
-            // Пытаемся понять тип по содержимому (грубо, но эффективно для старых данных)
-            if (text.toLowerCase().includes('audio') || text.toLowerCase().includes('transcription')) {
-                return <span className="italic text-purple-400">🎤 Voice Message</span>;
-            }
-            if (text.toLowerCase().includes('image') || text.toLowerCase().includes('photo')) {
-                return <span className="italic text-blue-400">📷 Photo</span>;
-            }
-            return <span className="italic text-zinc-500">Analysis...</span>;
-        }
-
-        // Проверка на новые маркеры (если ты их уже внедрил, типа [Voice]...)
         if (text.startsWith('[Voice')) return <span className="italic text-purple-400">🎤 Voice Message</span>;
-        if (text.startsWith('[Photo')) return <span className="italic text-blue-400">📷 Photo</span>;
-        if (text.startsWith('📷')) return <span className="italic text-blue-400">📷 Photo</span>; // Если caption
-
-        // Обычный текст
-        return truncateText(text, 45);
+        if (text.startsWith('📷')) return <span className="italic text-blue-400">📷 Photo</span>;
+        return text.length > 45 ? text.substring(0, 45) + "..." : text;
     };
 
     return (
@@ -101,25 +89,27 @@ function LeadCard({ lead, index, onDelete, onAddNote, onDeleteNote, onClick }: {
                     ref={provided.innerRef}
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
-                    // ВАЖНО: Стиль библиотеки применяется к этому внешнему контейнеру
-                    style={{ ...provided.draggableProps.style }}
-                    className="mb-3 outline-none" // Оставляем только отступы, убираем визуал
+                    // ВАЖНО: Мы не применяем здесь transition: 'none' жестко,
+                    // мы просто используем стиль библиотеки как есть, но БЕЗ классов Tailwind
+                    style={provided.draggableProps.style}
+                    // ВАЖНО: Здесь НЕТ классов transition-all, duration-*, ease-*
+                    // margin-bottom убран, так как у родителя gap-2
+                    className="outline-none"
                     onClick={onClick}
                 >
-                    {/* ВНУТРЕННИЙ КОНТЕЙНЕР ДЛЯ ВИЗУАЛА И АНИМАЦИИ */}
+                    {/* ВНУТРЕННИЙ БЛОК: Только здесь живут анимации и стили */}
                     <div
                         className={`
-                            relative group p-4 rounded-xl cursor-pointer transition-all duration-300
-                            bg-[#18181b]/60 backdrop-blur-md border border-white/5
+                            relative group p-4 rounded-xl cursor-pointer
+                            border border-white/5
                             
                             ${snapshot.isDragging
-                            ? 'bg-zinc-800/90 shadow-[0_0_30px_rgba(168,85,247,0.3)] ring-2 ring-purple-500/50 scale-105' // Scale здесь безопасен
-                            : 'hover:border-purple-500/30 hover:bg-[#18181b]/80 hover:shadow-[0_4px_20px_rgba(0,0,0,0.4)]'
+                            ? 'bg-zinc-800/90 shadow-[0_0_30px_rgba(168,85,247,0.3)] ring-2 ring-purple-500/50 scale-105 z-50'
+                            : 'bg-[#18181b]/60 hover:border-purple-500/30 hover:bg-[#18181b]/80 hover:shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-all duration-200'
                         }
                         `}
                     >
-                        {/* Весь контент карточки переносим сюда без изменений */}
-
+                        {/* Индикатор заметки */}
                         {lead.note && (
                             <div className="absolute top-0 right-0 pointer-events-none">
                                 <div className="w-0 h-0 border-t-[20px] border-l-[20px] border-t-yellow-500/20 border-l-transparent rounded-tr-xl"></div>
@@ -127,8 +117,6 @@ function LeadCard({ lead, index, onDelete, onAddNote, onDeleteNote, onClick }: {
                         )}
 
                         <div className="flex justify-between items-start mb-2 pr-4">
-                            {/* ... Код шапки (аватар, имя, меню) ... */}
-                            {/* Вставьте сюда внутренности header-а из вашего старого кода */}
                             <div className="flex items-center gap-3">
                                 <div className="relative">
                                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 flex items-center justify-center text-sm font-bold text-white border border-white/10 shadow-inner">
@@ -144,7 +132,6 @@ function LeadCard({ lead, index, onDelete, onAddNote, onDeleteNote, onClick }: {
                                 </div>
                             </div>
 
-                            {/* Меню (кнопка с точками) */}
                             <div className="absolute top-3 right-2" onClick={(e) => e.stopPropagation()}>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
@@ -152,14 +139,15 @@ function LeadCard({ lead, index, onDelete, onAddNote, onDeleteNote, onClick }: {
                                 >
                                     <Icons.Dots />
                                 </button>
+                                {/* МЕНЮ */}
                                 <AnimatePresence>
                                     {showMenu && (
                                         <motion.div
                                             initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
                                             className="absolute right-0 top-8 w-36 bg-[#0a0a0a] border border-zinc-800 rounded-xl shadow-2xl z-50 overflow-hidden ring-1 ring-white/10"
                                         >
-                                            {!lead.note && <button onClick={(e) => { e.stopPropagation(); onAddNote(lead); }} className="w-full text-left px-3 py-2.5 text-xs text-zinc-300 hover:bg-zinc-900 flex items-center gap-2 transition-colors"><span className="text-zinc-500"><Icons.Note /></span> Add Note</button>}
-                                            {lead.note && <button onClick={(e) => { e.stopPropagation(); onDeleteNote(lead); }} className="w-full text-left px-3 py-2.5 text-xs text-zinc-300 hover:bg-zinc-900 flex items-center gap-2 transition-colors"><span className="text-zinc-500"><Icons.Trash /></span> Delete Note</button>}
+                                            {!lead.note && <button onClick={(e) => { e.stopPropagation(); onAddNote(lead); setShowMenu(false); }} className="w-full text-left px-3 py-2.5 text-xs text-zinc-300 hover:bg-zinc-900 flex items-center gap-2 transition-colors"><span className="text-zinc-500"><Icons.Note /></span> Add Note</button>}
+                                            {lead.note && <button onClick={(e) => { e.stopPropagation(); onDeleteNote(lead); setShowMenu(false); }} className="w-full text-left px-3 py-2.5 text-xs text-zinc-300 hover:bg-zinc-900 flex items-center gap-2 transition-colors"><span className="text-zinc-500"><Icons.Trash /></span> Delete Note</button>}
                                             <div className="h-px bg-white/5"></div>
                                             <button onClick={(e) => { e.stopPropagation(); onDelete(lead._id); }} className="w-full text-left px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"><span className="text-red-500/70"><Icons.Trash /></span> Delete Lead</button>
                                         </motion.div>
@@ -168,38 +156,31 @@ function LeadCard({ lead, index, onDelete, onAddNote, onDeleteNote, onClick }: {
                             </div>
                         </div>
 
-                        {/* Content Area */}
                         <div className="mt-3 mb-3 min-h-[2.5em]">
                             {lead.note ? (
                                 <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2 flex items-start gap-2">
                                     <span className="text-yellow-500 mt-0.5 shrink-0"><Icons.Note /></span>
-                                    <p className="text-xs text-yellow-200/90 font-medium leading-snug line-clamp-2">
-                                        {lead.note}
-                                    </p>
+                                    <p className="text-xs text-yellow-200/90 font-medium leading-snug line-clamp-2">{lead.note}</p>
                                 </div>
                             ) : (
-                                <p className="text-xs text-zinc-500 leading-relaxed pl-1">
-                                    {renderLastMessage(lead.last_message)}
-                                </p>
+                                <p className="text-xs text-zinc-500 leading-relaxed pl-1">{renderLastMessage(lead.last_message)}</p>
                             )}
                         </div>
 
-                        {/* Footer */}
                         <div className="flex justify-between items-center pt-2 border-t border-white/5">
-                             <span className={`text-[9px] font-bold px-2.5 py-1 rounded-md border tracking-wide ${tempBadge}`}>
-                               {lead.temperature}
-                             </span>
+                            <span className={`text-[9px] font-bold px-2.5 py-1 rounded-md border tracking-wide ${tempBadge}`}>
+                                {lead.temperature}
+                            </span>
                             <div className="text-[10px] font-medium text-zinc-600">
-                                {new Date(lead.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                {new Date(lead.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </div>
                         </div>
-
                     </div>
                 </div>
             )}
         </Draggable>
     );
-}
+};
 
 // --- MODALS (Без изменений логики, только стиль) ---
 function CreateStatusModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
@@ -466,25 +447,45 @@ export default function PipelinePage() {
 
     const onDragEnd = async (result: DropResult) => {
         const { destination, source, draggableId } = result;
-        if (!destination) return;
-        if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
-        const newStatusId = destination.droppableId;
-        const newLeads = [...leads];
-        const leadIndex = newLeads.findIndex(l => l._id === draggableId);
-        if (leadIndex !== -1) {
-            newLeads[leadIndex] = { ...newLeads[leadIndex], status: newStatusId };
-            setLeads(newLeads);
+        // 1. Если бросили мимо или вернули на то же место - ничего не делаем
+        if (!destination) return;
+        if (
+            destination.droppableId === source.droppableId &&
+            destination.index === source.index
+        ) {
+            return;
         }
 
+        const newStatusId = destination.droppableId;
+
+        // 2. ОПТИМИСТИЧНОЕ ОБНОВЛЕНИЕ (Мгновенно для пользователя)
+        // Создаем новый массив, чтобы React увидел изменения
+        const newLeads = leads.map(lead => {
+            if (lead._id === draggableId) {
+                return { ...lead, status: newStatusId }; // Меняем статус
+            }
+            return lead;
+        });
+
+        setLeads(newLeads); // <--- Обновляем стейт сразу же!
+
+        // 3. Отправляем запрос на сервер (в фоне)
         try {
             const token = localStorage.getItem("token");
             await fetch(`${API_URL}/leads/${draggableId}`, {
                 method: 'PATCH',
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify({ status: newStatusId })
             });
-        } catch (error) { console.error("Failed to update status", error); }
+        } catch (error) {
+            console.error("Failed to update status on server", error);
+            // Тут можно добавить откат (fetchData), если сервер вернул ошибку
+            fetchData();
+        }
     };
 
     const handleDeleteLead = async (id: string) => {
@@ -597,26 +598,19 @@ export default function PipelinePage() {
     return (
         <div className="flex flex-col h-full overflow-hidden relative bg-[#020202] text-zinc-100 font-sans antialiased selection:bg-purple-500/30">
 
-            {/* --- GLOBAL STYLES FOR SCROLLBARS --- */}
+            {/* --- GLOBAL STYLES --- */}
             <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
-        
-        @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-    `}</style>
+            .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+            .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+            .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+            @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        `}</style>
 
             {/* --- AMBIENT BACKGROUND --- */}
             <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-                {/* Main gradients */}
                 <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-purple-600/10 blur-[180px] rounded-full mix-blend-screen animate-pulse-slow" />
                 <div className="absolute bottom-[-20%] right-[-10%] w-[800px] h-[800px] bg-indigo-600/10 blur-[180px] rounded-full mix-blend-screen" />
-
-                {/* Grid & Noise Overlay */}
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_at_center,black_50%,transparent_100%)] opacity-20" />
                 <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.04] brightness-100 contrast-150" />
             </div>
@@ -632,50 +626,22 @@ export default function PipelinePage() {
                         <>
                             <div className="h-5 w-px bg-white/10 mx-1"></div>
                             <div className="flex items-center gap-3">
-                                {/* SEARCH INPUT */}
                                 <div className="relative group">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <svg className="w-4 h-4 text-zinc-500 group-focus-within:text-purple-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                     </div>
-                                    <input
-                                        type="text"
-                                        placeholder="Search leads..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="block w-64 pl-9 pr-3 py-1.5 border border-white/10 rounded-lg leading-5 bg-white/[0.03] text-zinc-300 placeholder-zinc-600 focus:outline-none focus:bg-white/[0.06] focus:border-purple-500/30 focus:ring-1 focus:ring-purple-500/30 sm:text-sm transition-all duration-200"
-                                    />
+                                    <input type="text" placeholder="Search leads..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="block w-64 pl-9 pr-3 py-1.5 border border-white/10 rounded-lg leading-5 bg-white/[0.03] text-zinc-300 placeholder-zinc-600 focus:outline-none focus:bg-white/[0.06] focus:border-purple-500/30 focus:ring-1 focus:ring-purple-500/30 sm:text-sm transition-all duration-200" />
                                 </div>
-
-                                {/* FILTER DROPDOWN */}
                                 <div className="relative" onClick={(e) => e.stopPropagation()}>
-                                    <button
-                                        onClick={() => setShowFilterMenu(!showFilterMenu)}
-                                        className={`h-8 w-8 flex items-center justify-center rounded-lg border transition-all duration-200 ${showFilterMenu ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]' : 'bg-white/[0.03] border-white/10 text-zinc-400 hover:text-white hover:bg-white/10 hover:border-white/20'}`}
-                                    >
+                                    <button onClick={() => setShowFilterMenu(!showFilterMenu)} className={`h-8 w-8 flex items-center justify-center rounded-lg border transition-all duration-200 ${showFilterMenu ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]' : 'bg-white/[0.03] border-white/10 text-zinc-400 hover:text-white hover:bg-white/10 hover:border-white/20'}`}>
                                         <Icons.Filter className="w-4 h-4" />
                                     </button>
-
                                     <AnimatePresence>
                                         {showFilterMenu && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                                                transition={{ duration: 0.15, ease: "easeOut" }}
-                                                className="absolute top-10 left-0 w-52 bg-[#0E0E0E] border border-white/10 rounded-xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.6)] backdrop-blur-xl overflow-hidden z-50 p-1.5"
-                                            >
+                                            <motion.div initial={{ opacity: 0, y: 8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.96 }} transition={{ duration: 0.15, ease: "easeOut" }} className="absolute top-10 left-0 w-52 bg-[#0E0E0E] border border-white/10 rounded-xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.6)] backdrop-blur-xl overflow-hidden z-50 p-1.5">
                                                 <div className="px-3 py-2 text-[10px] uppercase font-bold text-zinc-500 tracking-wider border-b border-white/5 mb-1.5">Sort Pipeline</div>
-                                                {[
-                                                    { id: 'newest', label: 'Newest First' },
-                                                    { id: 'oldest', label: 'Oldest First' },
-                                                    { id: 'hot', label: 'Hot Leads 🔥' },
-                                                    { id: 'cold', label: 'Cold Leads ❄️' },
-                                                ].map((item) => (
-                                                    <button
-                                                        key={item.id}
-                                                        onClick={() => { setFilter(item.id as any); setShowFilterMenu(false); }}
-                                                        className={`w-full text-left px-3 py-2 text-xs rounded-lg flex items-center justify-between transition-all ${filter === item.id ? 'bg-purple-500/10 text-purple-300' : 'text-zinc-400 hover:bg-white/5 hover:text-zinc-200'}`}
-                                                    >
+                                                {[{ id: 'newest', label: 'Newest First' }, { id: 'oldest', label: 'Oldest First' }, { id: 'hot', label: 'Hot Leads 🔥' }, { id: 'cold', label: 'Cold Leads ❄️' }].map((item) => (
+                                                    <button key={item.id} onClick={() => { setFilter(item.id as any); setShowFilterMenu(false); }} className={`w-full text-left px-3 py-2 text-xs rounded-lg flex items-center justify-between transition-all ${filter === item.id ? 'bg-purple-500/10 text-purple-300' : 'text-zinc-400 hover:bg-white/5 hover:text-zinc-200'}`}>
                                                         {item.label}
                                                         {filter === item.id && <motion.div layoutId="activeFilter" className="w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.8)]" />}
                                                     </button>
@@ -690,72 +656,29 @@ export default function PipelinePage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {telegramPlatform ? (
+                    {telegramPlatform && (
                         <motion.button onClick={() => setShowPlatformModal(true)} className="group h-9 px-3.5 rounded-full bg-blue-500/5 border border-blue-500/10 text-blue-400 text-xs font-semibold flex items-center gap-2 transition-all hover:bg-blue-500/10 hover:border-blue-500/20 hover:shadow-[0_0_15px_rgba(59,130,246,0.1)]">
-                    <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-                    </span>
-                            <Icons.Telegram className="w-4 h-4 opacity-80 group-hover:opacity-100" />
-                            <span className="hidden sm:inline opacity-90 group-hover:opacity-100">Telegram</span>
+                            <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span></span>
+                            <Icons.Telegram className="w-4 h-4 opacity-80 group-hover:opacity-100" /><span className="hidden sm:inline opacity-90 group-hover:opacity-100">Telegram</span>
                         </motion.button>
-                    ) : null}
-
-                    {telegramBot ? (
-                        <motion.button
-                            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                            onClick={() => setShowBotModal(true)}
-                            className="group h-9 px-3.5 rounded-full bg-indigo-500/5 border border-indigo-500/10 text-indigo-400 text-xs font-semibold flex items-center gap-2 transition-all hover:bg-indigo-500/10 hover:border-indigo-500/20 hover:shadow-[0_0_15px_rgba(99,102,241,0.1)]"
-                        >
-                    <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                    </span>
-                            <Icons.Bot className="w-4 h-4 opacity-80 group-hover:opacity-100" />
-                            <span className="hidden sm:inline opacity-90 group-hover:opacity-100">Bot Active</span>
+                    )}
+                    {telegramBot && (
+                        <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowBotModal(true)} className="group h-9 px-3.5 rounded-full bg-indigo-500/5 border border-indigo-500/10 text-indigo-400 text-xs font-semibold flex items-center gap-2 transition-all hover:bg-indigo-500/10 hover:border-indigo-500/20 hover:shadow-[0_0_15px_rgba(99,102,241,0.1)]">
+                            <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span></span>
+                            <Icons.Bot className="w-4 h-4 opacity-80 group-hover:opacity-100" /><span className="hidden sm:inline opacity-90 group-hover:opacity-100">Bot Active</span>
                         </motion.button>
-                    ) : null}
-
-                    {/* --- CONNECT BUTTON WITH GLOW & POINTER LOGIC --- */}
+                    )}
                     <div className="relative">
-                        {/* Floating Pointer (Only shows if NO platform is connected) */}
                         {(!telegramPlatform && !telegramBot) && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -5 }}
-                                animate={{ opacity: 1, y: 5 }}
-                                transition={{
-                                    repeat: Infinity,
-                                    repeatType: "reverse",
-                                    duration: 1
-                                }}
-                                className="absolute -bottom-10 right-0 z-50 pointer-events-none flex flex-col items-end"
-                            >
+                            <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 5 }} transition={{ repeat: Infinity, repeatType: "reverse", duration: 1 }} className="absolute -bottom-10 right-0 z-50 pointer-events-none flex flex-col items-end">
                                 <div className="mr-6 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-purple-500 rotate-180 mb-1"></div>
-                                <div className="bg-purple-500 text-white text-[10px] font-bold py-1 px-3 rounded-lg shadow-[0_0_15px_rgba(168,85,247,0.6)] whitespace-nowrap">
-                                    Start here! 🚀
-                                </div>
+                                <div className="bg-purple-500 text-white text-[10px] font-bold py-1 px-3 rounded-lg shadow-[0_0_15px_rgba(168,85,247,0.6)] whitespace-nowrap">Start here! 🚀</div>
                             </motion.div>
                         )}
-
                         <Link href="/dashboard/connect">
-                            <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.98 }}
-                                className={`
-                                relative h-9 px-4 rounded-full text-xs font-bold flex items-center gap-2 transition-all overflow-hidden
-                                ${(!telegramPlatform && !telegramBot)
-                                    ? "bg-white text-black shadow-[0_0_30px_rgba(168,85,247,0.6)] border-2 border-purple-500 ring-2 ring-purple-500/20"
-                                    : "bg-zinc-50 border border-zinc-200 text-zinc-950 shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:bg-white"
-                                }
-                            `}
-                            >
-                                {/* Shimmer Effect for attention */}
-                                {(!telegramPlatform && !telegramBot) && (
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-200/50 to-transparent -skew-x-12 w-full h-full animate-[shimmer_2s_infinite]" style={{ transform: 'translateX(-100%)' }} />
-                                )}
-
-                                <Icons.Plus className={`w-3.5 h-3.5 ${(!telegramPlatform && !telegramBot) ? "text-purple-600" : ""}`} />
-                                Connect Platform
+                            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }} className={`relative h-9 px-4 rounded-full text-xs font-bold flex items-center gap-2 transition-all overflow-hidden ${(!telegramPlatform && !telegramBot) ? "bg-white text-black shadow-[0_0_30px_rgba(168,85,247,0.6)] border-2 border-purple-500 ring-2 ring-purple-500/20" : "bg-zinc-50 border border-zinc-200 text-zinc-950 shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:bg-white"}`}>
+                                {(!telegramPlatform && !telegramBot) && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-200/50 to-transparent -skew-x-12 w-full h-full animate-[shimmer_2s_infinite]" style={{ transform: 'translateX(-100%)' }} />}
+                                <Icons.Plus className={`w-3.5 h-3.5 ${(!telegramPlatform && !telegramBot) ? "text-purple-600" : ""}`} /> Connect Platform
                             </motion.button>
                         </Link>
                     </div>
@@ -766,24 +689,16 @@ export default function PipelinePage() {
             <div className="flex-1 relative z-10 overflow-hidden">
                 {user?.is_premium ? (
                     <>
-                        {/* Modals Container */}
                         <AnimatePresence>
                             {selectedLead && <ChatModal key="chat" lead={selectedLead} onClose={() => setSelectedLead(null)} onUpdate={handleLeadUpdate} />}
                             {showCreateStatus && <CreateStatusModal key="status" onClose={() => setShowCreateStatus(false)} onCreated={fetchData} />}
                             {showPlatformModal && telegramPlatform && <PlatformDetailsModal key="platform" platform={telegramPlatform} onClose={() => setShowPlatformModal(false)} />}
                             {noteModalLead && <AddNoteModal key="note" onClose={() => setNoteModalLead(null)} onSaved={handleSaveNote} />}
                             {toastMessage && <Toast key="toast" message={toastMessage} onClose={() => setToastMessage("")} />}
-                            {showBotModal && telegramBot && (
-                                <BotDetailsModal
-                                    key="bot-modal"
-                                    bot={telegramBot}
-                                    onClose={() => setShowBotModal(false)}
-                                    onDisconnect={handleDisconnectBot}
-                                />
-                            )}
+                            {showBotModal && telegramBot && <BotDetailsModal key="bot-modal" bot={telegramBot} onClose={() => setShowBotModal(false)} onDisconnect={handleDisconnectBot} />}
                         </AnimatePresence>
 
-                        {/* Board Area */}
+                        {/* --- BOARD AREA (FIXED) --- */}
                         <DragDropContext onDragEnd={onDragEnd}>
                             <div className="w-full h-full overflow-x-auto overflow-y-hidden custom-scrollbar px-6 py-6">
                                 <div className="flex h-full gap-6 min-w-max">
@@ -792,39 +707,25 @@ export default function PipelinePage() {
 
                                         return (
                                             <div key={status._id} className="w-[350px] flex flex-col shrink-0 h-full max-h-full">
-                                                {/* --- COLUMN HEADER --- */}
+                                                {/* COLUMN HEADER */}
                                                 <div className="group flex items-center justify-between mb-3 px-2 py-2 rounded-xl hover:bg-white/[0.02] transition-colors relative z-20">
                                                     <div className="flex items-center gap-3">
                                                         <div className="h-2 w-2 rounded-full bg-zinc-700 ring-2 ring-zinc-800 group-hover:bg-purple-500 group-hover:ring-purple-500/20 transition-all shadow-[0_0_8px_rgba(0,0,0,0.5)]"></div>
                                                         <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-widest group-hover:text-white transition-colors">{status.name}</h2>
                                                         <span className="bg-white/5 border border-white/5 text-zinc-500 text-[10px] font-mono font-medium px-2 py-0.5 rounded-full min-w-[20px] text-center group-hover:text-zinc-300 group-hover:border-white/10 transition-colors">
-                                                    {columnLeads.length}
-                                                </span>
+                                                        {columnLeads.length}
+                                                    </span>
                                                     </div>
 
-                                                    {/* Menu */}
                                                     <div onClick={(e) => e.stopPropagation()}>
-                                                        <button
-                                                            onClick={() => setActiveMenuStatusId(activeMenuStatusId === status._id ? null : status._id)}
-                                                            className={`p-1.5 rounded-md transition-all opacity-0 group-hover:opacity-100 ${activeMenuStatusId === status._id ? 'opacity-100 bg-white/10 text-white' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
-                                                        >
+                                                        <button onClick={() => setActiveMenuStatusId(activeMenuStatusId === status._id ? null : status._id)} className={`p-1.5 rounded-md transition-all opacity-0 group-hover:opacity-100 ${activeMenuStatusId === status._id ? 'opacity-100 bg-white/10 text-white' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}>
                                                             <Icons.Dots className="w-4 h-4" />
                                                         </button>
-
                                                         <AnimatePresence>
                                                             {activeMenuStatusId === status._id && (
-                                                                <motion.div
-                                                                    initial={{ opacity: 0, scale: 0.95, y: 5 }}
-                                                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                                                    exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                                                                    className="absolute right-0 top-10 w-44 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-[0_10px_30px_-5px_rgba(0,0,0,0.8)] z-50 overflow-hidden"
-                                                                >
-                                                                    <button
-                                                                        onClick={() => handleDeleteStatus(status._id)}
-                                                                        className="w-full text-left px-4 py-3 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300 flex items-center gap-2.5 transition-colors font-medium"
-                                                                    >
-                                                                        <Icons.Trash className="w-3.5 h-3.5" />
-                                                                        Delete Stage
+                                                                <motion.div initial={{ opacity: 0, scale: 0.95, y: 5 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 5 }} className="absolute right-0 top-10 w-44 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-[0_10px_30px_-5px_rgba(0,0,0,0.8)] z-50 overflow-hidden">
+                                                                    <button onClick={() => handleDeleteStatus(status._id)} className="w-full text-left px-4 py-3 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300 flex items-center gap-2.5 transition-colors font-medium">
+                                                                        <Icons.Trash className="w-3.5 h-3.5" /> Delete Stage
                                                                     </button>
                                                                 </motion.div>
                                                             )}
@@ -832,15 +733,22 @@ export default function PipelinePage() {
                                                     </div>
                                                 </div>
 
-                                                {/* --- DROPPABLE AREA --- */}
-                                                <div className="flex-1 min-h-0 bg-white/[0.015] border border-white/[0.03] rounded-2xl flex flex-col p-2 relative backdrop-blur-sm">
+                                                {/* DROPPABLE CONTAINER (FIXED: Separate Backdrop Layer) */}
+                                                <div className="flex-1 min-h-0 bg-white/[0.015] border border-white/[0.03] rounded-2xl flex flex-col relative overflow-hidden">
+                                                    {/* Изолированный слой для блюра, чтобы не ломать position:fixed при драге */}
+                                                    <div className="absolute inset-0 backdrop-blur-sm -z-10" />
+
                                                     <Droppable droppableId={status._id}>
                                                         {(provided, snapshot) => (
                                                             <div
                                                                 {...provided.droppableProps}
                                                                 ref={provided.innerRef}
-                                                                className={`flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 transition-all duration-300 ${snapshot.isDraggingOver ? 'bg-purple-500/5 ring-1 ring-purple-500/20 rounded-xl' : ''}`}
-                                                                style={{ paddingBottom: '10px' }}
+                                                                // УБРАН transition-all, чтобы контейнер не прыгал при драге
+                                                                // gap-2 контролирует отступы карточек
+                                                                className={`
+                                                                flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 p-2
+                                                                ${snapshot.isDraggingOver ? 'bg-purple-500/5 ring-1 ring-inset ring-purple-500/20' : ''}
+                                                            `}
                                                             >
                                                                 {columnLeads.length > 0 ? columnLeads.map((lead, index) => (
                                                                     <LeadCard
@@ -875,15 +783,9 @@ export default function PipelinePage() {
                                         );
                                     })}
 
-                                    {/* Add New Stage Button */}
                                     <div className="w-[350px] shrink-0 pt-14 px-4 opacity-40 hover:opacity-100 transition-all duration-300 group">
-                                        <button
-                                            onClick={() => setShowCreateStatus(true)}
-                                            className="w-full h-14 border border-dashed border-white/20 rounded-2xl text-zinc-400 group-hover:text-white group-hover:border-purple-500/50 group-hover:bg-purple-500/5 transition-all text-xs font-bold uppercase tracking-wide flex items-center justify-center gap-3 shadow-none group-hover:shadow-[0_0_20px_rgba(168,85,247,0.1)]"
-                                        >
-                                            <div className="p-1 rounded bg-white/10 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                                                <Icons.Plus className="w-3.5 h-3.5" />
-                                            </div>
+                                        <button onClick={() => setShowCreateStatus(true)} className="w-full h-14 border border-dashed border-white/20 rounded-2xl text-zinc-400 group-hover:text-white group-hover:border-purple-500/50 group-hover:bg-purple-500/5 transition-all text-xs font-bold uppercase tracking-wide flex items-center justify-center gap-3 shadow-none group-hover:shadow-[0_0_20px_rgba(168,85,247,0.1)]">
+                                            <div className="p-1 rounded bg-white/10 group-hover:bg-purple-500 group-hover:text-white transition-colors"><Icons.Plus className="w-3.5 h-3.5" /></div>
                                             Add Pipeline Stage
                                         </button>
                                     </div>
@@ -892,41 +794,18 @@ export default function PipelinePage() {
                         </DragDropContext>
                     </>
                 ) : (
-
-                    // --- PAYWALL ---
                     <div className="flex-1 flex flex-col items-center justify-center p-8">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                            className="max-w-md w-full relative group"
-                        >
-                            {/* Gradient Glow */}
+                        <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-md w-full relative group">
                             <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 rounded-[32px] blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
-
                             <div className="relative bg-[#09090b] border border-white/10 rounded-3xl p-10 text-center shadow-2xl overflow-hidden">
-                                {/* Inner Background Effects */}
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 blur-[50px] pointer-events-none" />
                                 <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/10 blur-[50px] pointer-events-none" />
-
-                                <div className="mb-8 inline-flex p-5 rounded-2xl bg-zinc-900/80 border border-white/10 text-zinc-400 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
-                                    <Icons.Lock className="w-8 h-8" />
-                                </div>
-
-                                <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-500 mb-4 tracking-tight">
-                                    Unlock Your Pipeline
-                                </h2>
-                                <p className="text-zinc-400 mb-10 text-sm leading-relaxed font-light">
-                                    Upgrade to Pro to visualize leads, automate statuses, and access AI-powered insights.
-                                </p>
-
+                                <div className="mb-8 inline-flex p-5 rounded-2xl bg-zinc-900/80 border border-white/10 text-zinc-400 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"><Icons.Lock className="w-8 h-8" /></div>
+                                <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-500 mb-4 tracking-tight">Unlock Your Pipeline</h2>
+                                <p className="text-zinc-400 mb-10 text-sm leading-relaxed font-light">Upgrade to Pro to visualize leads, automate statuses, and access AI-powered insights.</p>
                                 <Link href="/pricing" className="block w-full">
-                                    <motion.button
-                                        whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                                        className="w-full py-4 rounded-xl bg-white text-black font-bold text-sm tracking-wide shadow-[0_0_20px_rgba(255,255,255,0.15)] hover:shadow-[0_0_35px_rgba(255,255,255,0.25)] transition-all flex items-center justify-center gap-2"
-                                    >
-                                        Upgrade to Pro
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full py-4 rounded-xl bg-white text-black font-bold text-sm tracking-wide shadow-[0_0_20px_rgba(255,255,255,0.15)] hover:shadow-[0_0_35px_rgba(255,255,255,0.25)] transition-all flex items-center justify-center gap-2">
+                                        Upgrade to Pro <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                                     </motion.button>
                                 </Link>
                             </div>

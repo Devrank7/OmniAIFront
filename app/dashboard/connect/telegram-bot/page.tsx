@@ -27,9 +27,9 @@ export default function ConnectTelegramBotPage() {
     const [error, setError] = useState("");
     const [showGuide, setShowGuide] = useState(false);
 
-    // Новые стейты для успеха
+    // Стейты успеха
     const [isConnected, setIsConnected] = useState(false);
-    const [botUsername, setBotUsername] = useState(""); // Чтобы показать ссылку
+    const [botUsername, setBotUsername] = useState(""); // Имя бота
 
     const isValidTokenFormat = (t: string) => /^\d+:[A-Za-z0-9_-]{35,}$/.test(t.trim());
 
@@ -67,11 +67,12 @@ export default function ConnectTelegramBotPage() {
 
             await fetchUser();
 
-            // Если сервер возвращает username бота - отлично, если нет - можно парсить из токена (не всегда работает) или просто не показывать
-            // Предположим, сервер вернул { success: true, username: 'MyBot' }
-            setBotUsername(data.username || "your_bot");
+            // Получаем юзернейм с сервера (data.platform.username или data.username)
+            // Если сервер не присылает, фоллбек на пустую строку, но по-хорошему сервер должен вернуть.
+            const connectedBotUsername = data.platform?.username || data.username || "your_bot";
+            setBotUsername(connectedBotUsername);
 
-            setIsConnected(true); // Переключаем на экран успеха
+            setIsConnected(true);
         } catch (err: any) {
             setError(err.message || "Failed to connect bot. Please check the token.");
         } finally {
@@ -82,9 +83,10 @@ export default function ConnectTelegramBotPage() {
     // --- ЭКРАН УСПЕХА ---
     if (isConnected) {
         return (
-            <div className="flex-1 flex flex-col items-center justify-center p-6 bg-[#050505] min-h-screen relative overflow-hidden">
-                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-05 pointer-events-none"/>
-                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-green-900/20 blur-[150px] rounded-full pointer-events-none" />
+            <div className="flex-1 flex flex-col items-center justify-center p-6 bg-[#020202] min-h-screen relative overflow-hidden">
+                {/* Clean Ambient Background */}
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-green-900/10 blur-[150px] rounded-full pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-900/10 blur-[150px] rounded-full pointer-events-none" />
 
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
@@ -101,11 +103,11 @@ export default function ConnectTelegramBotPage() {
 
                     <div className="grid md:grid-cols-2 gap-6 mb-10">
                         {/* Карточка 1: Ссылка */}
-                        <div className="bg-white/5 border border-white/5 rounded-2xl p-6 hover:bg-white/[0.07] transition-colors">
+                        <div className="bg-white/5 border border-white/5 rounded-2xl p-6 hover:bg-white/[0.07] transition-colors flex flex-col">
                             <div className="text-2xl mb-3">🔗</div>
                             <h3 className="text-white font-bold mb-2">Share Your Link</h3>
-                            <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
-                                Put this link in your Instagram Bio, Website, or Ads. Clients will click and start chatting.
+                            <p className="text-sm text-zinc-400 mb-4 leading-relaxed flex-1">
+                                Put this link in your Bio or Ads. Clients will click and start chatting.
                             </p>
                             <div className="flex items-center gap-2 bg-black/40 rounded-lg p-2 border border-white/10">
                                 <code className="text-indigo-400 text-sm truncate flex-1">t.me/{botUsername}</code>
@@ -120,21 +122,21 @@ export default function ConnectTelegramBotPage() {
                         </div>
 
                         {/* Карточка 2: Ценность */}
-                        <div className="bg-white/5 border border-white/5 rounded-2xl p-6 hover:bg-white/[0.07] transition-colors">
+                        <div className="bg-white/5 border border-white/5 rounded-2xl p-6 hover:bg-white/[0.07] transition-colors flex flex-col">
                             <div className="text-2xl mb-3">🚀</div>
                             <h3 className="text-white font-bold mb-2">What happens next?</h3>
-                            <ul className="space-y-3 text-sm text-zinc-400">
+                            <ul className="space-y-3 text-sm text-zinc-400 flex-1">
                                 <li className="flex gap-2">
                                     <span className="text-green-400">✓</span>
-                                    AI will instantly reply to "Hi", "Price?", etc.
+                                    AI replies instantly to messages.
                                 </li>
                                 <li className="flex gap-2">
                                     <span className="text-green-400">✓</span>
-                                    Leads will appear in your CRM Pipeline.
+                                    Leads appear in your CRM.
                                 </li>
                                 <li className="flex gap-2">
                                     <span className="text-green-400">✓</span>
-                                    You can intervene and chat manually anytime.
+                                    Take over chat manually anytime.
                                 </li>
                             </ul>
                         </div>
@@ -151,12 +153,12 @@ export default function ConnectTelegramBotPage() {
         );
     }
 
-    // --- ЭКРАН ПОДКЛЮЧЕНИЯ (СТАРЫЙ КОД) ---
+    // --- ЭКРАН ПОДКЛЮЧЕНИЯ (ФОРМА) ---
     return (
-        <div className="flex-1 flex flex-col items-center justify-center p-4 lg:p-8 bg-[#050505] relative overflow-hidden min-h-screen font-sans">
-            {/* Background Ambience */}
-            <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-indigo-900/20 blur-[150px] rounded-full pointer-events-none" />
-            <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-purple-900/20 blur-[150px] rounded-full pointer-events-none" />
+        <div className="flex-1 flex flex-col items-center justify-center p-4 lg:p-8 bg-[#020202] relative overflow-hidden min-h-screen font-sans">
+            {/* Clean Ambient Background (No Noise) */}
+            <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-indigo-900/10 blur-[150px] rounded-full pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-purple-900/10 blur-[150px] rounded-full pointer-events-none" />
 
             <motion.div
                 layout
