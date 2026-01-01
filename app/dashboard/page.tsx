@@ -1,6 +1,6 @@
 "use client";
 
-import React, {memo, useEffect, useState} from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
@@ -44,13 +44,13 @@ const Icons = {
 };
 
 // --- КОМПОНЕНТ КАРТОЧКИ ---
-const LeadCard = memo(({ lead, index, onDelete, onAddNote, onDeleteNote, onClick }: {
+function LeadCard({ lead, index, onDelete, onAddNote, onDeleteNote, onClick }: {
     lead: Lead; index: number;
     onDelete: (id: string) => void;
     onAddNote: (lead: Lead) => void;
     onDeleteNote: (lead: Lead) => void;
     onClick: () => void;
-}) => {
+}) {
     const [showMenu, setShowMenu] = useState(false);
 
     useEffect(() => {
@@ -93,16 +93,6 @@ const LeadCard = memo(({ lead, index, onDelete, onAddNote, onDeleteNote, onClick
         // Обычный текст
         return truncateText(text, 45);
     };
-    function getStyle(style, snapshot) {
-        if (!snapshot.isDropAnimating) {
-            return style;
-        }
-        return {
-            ...style,
-            // Убираем стандартную анимацию "броска" (drop animation), она тоже лагает
-            transitionDuration: `0.001s`,
-        };
-    }
 
     return (
         <Draggable draggableId={lead._id} index={index}>
@@ -111,23 +101,14 @@ const LeadCard = memo(({ lead, index, onDelete, onAddNote, onDeleteNote, onClick
                     ref={provided.innerRef}
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
-                    style={{
-                        ...provided.draggableProps.style, // Базовые стили
-                        transition: snapshot.isDragging ? "none" : "transform 0.2s cubic-bezier(0.2, 0, 0, 1)", // Убираем транзишн при драге
-                        transform: snapshot.isDragging ? provided.draggableProps.style?.transform : "none", // Иногда translate3d лучше работает
-                    }}
+                    style={{ ...provided.draggableProps.style }}
                     onClick={onClick}
                     className={`
-    relative group mb-3 rounded-xl p-4 cursor-pointer 
-    /* Убираем глобальный transition-all duration-300, он конфликтует с DND! */
-    /* Оставляем транзишн только для цветов */
-    transition-colors duration-200 
-
-    ${snapshot.isDragging
-                        ? 'bg-zinc-800 shadow-2xl ring-2 ring-purple-500 z-50' // НЕТ backdrop-blur! Просто цвет.
-                        : 'bg-[#18181b]/60 backdrop-blur-md border border-white/5 hover:border-purple-500/30'
-                    }
-`}
+            relative group mb-3 rounded-xl p-4 cursor-pointer transition-all duration-300
+            ${snapshot.isDragging
+                        ? 'bg-zinc-800/90 shadow-[0_0_30px_rgba(168,85,247,0.3)] ring-2 ring-purple-500/50 scale-105 z-50'
+                        : 'bg-[#18181b]/60 backdrop-blur-md border border-white/5 hover:border-purple-500/30 hover:bg-[#18181b]/80 hover:shadow-[0_4px_20px_rgba(0,0,0,0.4)]'}
+          `}
                 >
                     {/* Индикатор, что есть заметка (маленький уголок) */}
                     {lead.note && (
@@ -208,7 +189,8 @@ const LeadCard = memo(({ lead, index, onDelete, onAddNote, onDeleteNote, onClick
             )}
         </Draggable>
     );
-});
+}
+
 // --- MODALS (Без изменений логики, только стиль) ---
 function CreateStatusModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4500';
