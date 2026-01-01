@@ -101,7 +101,14 @@ function LeadCard({ lead, index, onDelete, onAddNote, onDeleteNote, onClick }: {
                     ref={provided.innerRef}
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
-                    style={{ ...provided.draggableProps.style }}
+                    style={{
+                        ...provided.draggableProps.style, // Важно сохранить стили библиотеки
+                        // 👇 САМОЕ ГЛАВНОЕ: Убираем анимацию, если тащим
+                        transition: snapshot.isDragging ? 'none' : 'all 0.2s ease',
+                        // 👇 Убираем блюр и тени при перетаскивании для производительности
+                        backdropFilter: snapshot.isDragging ? 'none' : 'blur(10px)',
+                        zIndex: snapshot.isDragging ? 9999 : 'auto',
+                    }}
                     onClick={onClick}
                     className={`
             relative group mb-3 rounded-xl p-4 cursor-pointer transition-all duration-300
