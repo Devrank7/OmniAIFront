@@ -589,11 +589,16 @@ export default function PipelinePage() {
 
             {/* --- GLOBAL STYLES FOR SCROLLBARS --- */}
             <style>{`
-            .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-            .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-            .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
-            .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
-        `}</style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+    `}</style>
 
             {/* --- AMBIENT BACKGROUND --- */}
             <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
@@ -613,7 +618,6 @@ export default function PipelinePage() {
                         <div className="w-2 h-6 bg-gradient-to-b from-purple-500 to-indigo-600 rounded-full shadow-[0_0_10px_rgba(139,92,246,0.3)]"></div>
                         <h1 className="text-xl font-bold text-white tracking-tight">CRM Pipeline</h1>
                     </div>
-
                     {user?.is_premium && (
                         <>
                             <div className="h-5 w-px bg-white/10 mx-1"></div>
@@ -678,10 +682,10 @@ export default function PipelinePage() {
                 <div className="flex items-center gap-3">
                     {telegramPlatform ? (
                         <motion.button onClick={() => setShowPlatformModal(true)} className="group h-9 px-3.5 rounded-full bg-blue-500/5 border border-blue-500/10 text-blue-400 text-xs font-semibold flex items-center gap-2 transition-all hover:bg-blue-500/10 hover:border-blue-500/20 hover:shadow-[0_0_15px_rgba(59,130,246,0.1)]">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-                        </span>
+                    <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                    </span>
                             <Icons.Telegram className="w-4 h-4 opacity-80 group-hover:opacity-100" />
                             <span className="hidden sm:inline opacity-90 group-hover:opacity-100">Telegram</span>
                         </motion.button>
@@ -693,24 +697,58 @@ export default function PipelinePage() {
                             onClick={() => setShowBotModal(true)}
                             className="group h-9 px-3.5 rounded-full bg-indigo-500/5 border border-indigo-500/10 text-indigo-400 text-xs font-semibold flex items-center gap-2 transition-all hover:bg-indigo-500/10 hover:border-indigo-500/20 hover:shadow-[0_0_15px_rgba(99,102,241,0.1)]"
                         >
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                        </span>
+                    <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                    </span>
                             <Icons.Bot className="w-4 h-4 opacity-80 group-hover:opacity-100" />
                             <span className="hidden sm:inline opacity-90 group-hover:opacity-100">Bot Active</span>
                         </motion.button>
                     ) : null}
 
-                    <Link href="/dashboard/connect">
-                        <motion.button
-                            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                            className="h-9 px-4 rounded-full bg-zinc-50 border border-zinc-200 text-zinc-950 text-xs font-bold flex items-center gap-1.5 shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.2)] hover:bg-white transition-all"
-                        >
-                            <Icons.Plus className="w-3.5 h-3.5" />
-                            Connect Platform
-                        </motion.button>
-                    </Link>
+                    {/* --- CONNECT BUTTON WITH GLOW & POINTER LOGIC --- */}
+                    <div className="relative">
+                        {/* Floating Pointer (Only shows if NO platform is connected) */}
+                        {(!telegramPlatform && !telegramBot) && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -5 }}
+                                animate={{ opacity: 1, y: 5 }}
+                                transition={{
+                                    repeat: Infinity,
+                                    repeatType: "reverse",
+                                    duration: 1
+                                }}
+                                className="absolute -bottom-10 right-0 z-50 pointer-events-none flex flex-col items-end"
+                            >
+                                <div className="mr-6 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-purple-500 rotate-180 mb-1"></div>
+                                <div className="bg-purple-500 text-white text-[10px] font-bold py-1 px-3 rounded-lg shadow-[0_0_15px_rgba(168,85,247,0.6)] whitespace-nowrap">
+                                    Start here! 🚀
+                                </div>
+                            </motion.div>
+                        )}
+
+                        <Link href="/dashboard/connect">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.98 }}
+                                className={`
+                                relative h-9 px-4 rounded-full text-xs font-bold flex items-center gap-2 transition-all overflow-hidden
+                                ${(!telegramPlatform && !telegramBot)
+                                    ? "bg-white text-black shadow-[0_0_30px_rgba(168,85,247,0.6)] border-2 border-purple-500 ring-2 ring-purple-500/20"
+                                    : "bg-zinc-50 border border-zinc-200 text-zinc-950 shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:bg-white"
+                                }
+                            `}
+                            >
+                                {/* Shimmer Effect for attention */}
+                                {(!telegramPlatform && !telegramBot) && (
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-200/50 to-transparent -skew-x-12 w-full h-full animate-[shimmer_2s_infinite]" style={{ transform: 'translateX(-100%)' }} />
+                                )}
+
+                                <Icons.Plus className={`w-3.5 h-3.5 ${(!telegramPlatform && !telegramBot) ? "text-purple-600" : ""}`} />
+                                Connect Platform
+                            </motion.button>
+                        </Link>
+                    </div>
                 </div>
             </header>
 
@@ -750,8 +788,8 @@ export default function PipelinePage() {
                                                         <div className="h-2 w-2 rounded-full bg-zinc-700 ring-2 ring-zinc-800 group-hover:bg-purple-500 group-hover:ring-purple-500/20 transition-all shadow-[0_0_8px_rgba(0,0,0,0.5)]"></div>
                                                         <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-widest group-hover:text-white transition-colors">{status.name}</h2>
                                                         <span className="bg-white/5 border border-white/5 text-zinc-500 text-[10px] font-mono font-medium px-2 py-0.5 rounded-full min-w-[20px] text-center group-hover:text-zinc-300 group-hover:border-white/10 transition-colors">
-                                                        {columnLeads.length}
-                                                    </span>
+                                                    {columnLeads.length}
+                                                </span>
                                                     </div>
 
                                                     {/* Menu */}
@@ -869,7 +907,7 @@ export default function PipelinePage() {
                                     Unlock Your Pipeline
                                 </h2>
                                 <p className="text-zinc-400 mb-10 text-sm leading-relaxed font-light">
-                                    Your trial has ended. Upgrade to Pro to visualize leads, automate statuses, and access AI-powered insights.
+                                    Upgrade to Pro to visualize leads, automate statuses, and access AI-powered insights.
                                 </p>
 
                                 <Link href="/pricing" className="block w-full">
@@ -881,15 +919,6 @@ export default function PipelinePage() {
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                                     </motion.button>
                                 </Link>
-
-                                <div className="mt-8 flex items-center justify-center gap-4 opacity-50">
-                                    <div className="flex -space-x-2">
-                                        {[1,2,3].map(i => <div key={i} className="w-6 h-6 rounded-full bg-zinc-800 border border-black" />)}
-                                    </div>
-                                    <p className="text-[10px] text-zinc-500 font-mono">
-                                        Trusted by 500+ agencies
-                                    </p>
-                                </div>
                             </div>
                         </motion.div>
                     </div>
